@@ -4,7 +4,7 @@
    ============================================================ */
 'use strict';
 
-const CACHE = 'siren-v3.0.1';
+const CACHE = 'siren-v3.1.0';
 
 const ASSETS = [
   './',

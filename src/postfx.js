@@ -156,7 +156,7 @@ const PostFX = (() => {
       this.matBright = new T.ShaderMaterial({
         uniforms: {
           tDiffuse: { value: null },
-          uThreshold: { value: 0.78 },
+          uThreshold: { value: 1.05 },
           uSoftKnee: { value: 0.6 }
         },
         vertexShader: QUAD_VERT, fragmentShader: BRIGHT_FRAG, depthTest: false, depthWrite: false
@@ -171,7 +171,7 @@ const PostFX = (() => {
           tBloom0: { value: null },
           tBloom1: { value: null },
           tBloom2: { value: null },
-          uBloom: { value: 0.55 },
+          uBloom: { value: 0.42 },
           uTime: { value: 0 },
           uGrain: { value: 0.02 },
           uVignette: { value: 0.62 },
@@ -284,9 +284,9 @@ const PostFX = (() => {
     setQuality(q) {
       this.quality = q;
       this.setSize(this.width, this.height);
-      if (q === 'low') { this.set('uBloom', 0.4); this.set('uGrain', 0.015); this.set('uAberration', 0.3); }
-      else if (q === 'medium') { this.set('uBloom', 0.5); this.set('uGrain', 0.018); this.set('uAberration', 0.5); }
-      else { this.set('uBloom', 0.58); this.set('uGrain', 0.02); this.set('uAberration', 0.7); }
+      if (q === 'low') { this.set('uBloom', 0.34); this.set('uGrain', 0.015); this.set('uAberration', 0.3); }
+      else if (q === 'medium') { this.set('uBloom', 0.4); this.set('uGrain', 0.018); this.set('uAberration', 0.5); }
+      else { this.set('uBloom', 0.45); this.set('uGrain', 0.02); this.set('uAberration', 0.7); }
     }
     dispose() {
       for (const rt of this.targets) rt.dispose();

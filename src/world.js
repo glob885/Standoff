@@ -231,9 +231,9 @@ const WorldGen = (() => {
       geo.rotateX(-Math.PI / 2);
       const pos = geo.attributes.position;
       const colors = new Float32Array(pos.count * 3);
-      const cGrass = new T.Color(0x5d7a4a);
-      const cDirt = new T.Color(0x6d5c42);
-      const cRock = new T.Color(0x74787c);
+      const cGrass = new T.Color(0xe8f0dc);
+      const cDirt = new T.Color(0xd8c8a8);
+      const cRock = new T.Color(0xc8ccd0);
       const tmp = new T.Color();
       for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i), z = pos.getZ(i);
@@ -244,7 +244,7 @@ const WorldGen = (() => {
         tmp.copy(cGrass).lerp(cDirt, U.clamp01(dirtMix));
         if (slope > 0.35) tmp.lerp(cRock, U.clamp01((slope - 0.35) * 2.4));
         // затемнение впадин
-        const ao = U.clamp01(0.88 + h * 0.02);
+        const ao = U.clamp01(0.92 + h * 0.012);
         colors[i * 3] = tmp.r * ao;
         colors[i * 3 + 1] = tmp.g * ao;
         colors[i * 3 + 2] = tmp.b * ao;
@@ -284,7 +284,7 @@ const WorldGen = (() => {
       });
       const leafMat = new T.MeshStandardMaterial({
         map: TEX.get('needle'), roughness: 0.85, metalness: 0,
-        color: 0x8fb27a
+        color: 0xdff0cc
       });
       const mats = [barkMat, leafMat];
 
@@ -338,7 +338,7 @@ const WorldGen = (() => {
           pos.getZ(i) * rng.range(0.7, 1.3));
       }
       geo.computeVertexNormals();
-      const mat = new T.MeshStandardMaterial({ color: 0x6a6d70, roughness: 0.92, metalness: 0.02 });
+      const mat = new T.MeshStandardMaterial({ color: 0x9fa4a8, roughness: 0.92, metalness: 0.02 });
       const inst = new T.InstancedMesh(geo, mat, this.opts.rockCount);
       inst.castShadow = true; inst.receiveShadow = true;
       const m = new T.Matrix4(), q = new T.Quaternion(), p = new T.Vector3(), s = new T.Vector3(), e = new T.Euler();
@@ -363,7 +363,7 @@ const WorldGen = (() => {
       const rng = this.rng;
       const geo = new T.IcosahedronGeometry(1, 0);
       const mat = new T.MeshStandardMaterial({
-        map: TEX.get('needle'), color: 0x7d9a6a, roughness: 0.9, metalness: 0
+        map: TEX.get('needle'), color: 0xc8e0b0, roughness: 0.9, metalness: 0
       });
       const inst = new T.InstancedMesh(geo, mat, this.opts.bushCount);
       inst.castShadow = true;
@@ -395,7 +395,7 @@ const WorldGen = (() => {
           uTime: { value: 0 },
           uWind: { value: 0.35 },
           uMap: { value: TEX.get('grass') },
-          uTint: { value: new T.Color(0xc3d6a6) },
+          uTint: { value: new T.Color(0xf0f7e2) },
           uFogColor: { value: new T.Color(0x121c24) },
           uFogDensity: { value: 0.012 }
         },
@@ -410,7 +410,7 @@ const WorldGen = (() => {
       let placed = 0;
       for (let i = 0; i < count; i++) {
         const a = rng.range(0, U.TAU);
-        const r = Math.sqrt(rng()) * Math.min(this.opts.size * 0.8, 120);
+        const r = Math.sqrt(rng()) * this.opts.size * 0.95;
         const x = Math.cos(a) * r, z = Math.sin(a) * r;
         if (this.field.slope(x, z) > 0.4) continue;
         const sc = rng.range(0.7, 1.9);

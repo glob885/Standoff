@@ -114,6 +114,17 @@ const Entities = (() => {
           d = Math.hypot(dx, dz) || 1;
         }
       }
+      // не лезть в камеру игроку
+      const pl = world.soldiers.find(s => s.isPlayer);
+      if (pl && pl !== this) {
+        const px = this.x - pl.x, pz = this.z - pl.z;
+        const pd = Math.hypot(px, pz) || 0.001;
+        if (pd < 2.6) {
+          dx += (px / pd) * (2.6 - pd) * 3.5;
+          dz += (pz / pd) * (2.6 - pd) * 3.5;
+          d = Math.hypot(dx, dz) || 1;
+        }
+      }
       // разойтись с соседями
       const near = world.querySoldiers(this.x, this.z, 1.6);
       for (const o of near) {
@@ -125,7 +136,7 @@ const Entities = (() => {
 
       const moving = d > 1.0 && this.stun <= 0;
       if (moving) {
-        const sp = Math.min(this.speed * (this.suppression > 0.4 ? 0.6 : 1), d * 2.2);
+        const sp = Math.min(this.speed * (this.pace || 1) * (this.suppression > 0.4 ? 0.6 : 1), d * 2.2);
         this.x += (dx / d) * sp * dt;
         this.z += (dz / d) * sp * dt;
         this.walkAmt = U.damp(this.walkAmt, 1, 8, dt);
@@ -140,6 +151,7 @@ const Entities = (() => {
       let wantYaw;
       if (this.target) wantYaw = this.angleTo(this.target);
       else if (moving) wantYaw = Math.atan2(dx, dz);
+      else if (this.squadDir !== undefined) wantYaw = this.squadDir + Math.sin(this.time * 0.4 + this.index) * 0.35;
       else wantYaw = this.yaw;
       this.yaw = U.angleDamp(this.yaw, wantYaw, 7, dt);
 
@@ -426,6 +438,7 @@ const Entities = (() => {
     update(dt, world) {
       this.time += dt;
       if (this.wrecked) { this.updateWreck(dt); return; }
+      if (this.escortRef) this.escort = this.escortRef;
 
       const target = world.boss && !world.boss.dead ? world.boss : world.findEnemyNear(this, 120);
       this.target = target;
@@ -435,6 +448,30 @@ const Entities = (() => {
     }
 
     updateGround(dt, world, target) {
+      if (!target && this.escort) {
+        // сопровождение пехоты: держим строй колонны
+        const dx = this.escort.x - this.x, dz = this.escort.z - this.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 4) {
+          const ang = Math.atan2(dx, dz);
+          const sp = Math.min(this.speed, d * 0.8);
+          this.x += Math.sin(ang) * sp * dt;
+          this.z += Math.cos(ang) * sp * dt;
+          this.yaw = U.angleDamp(this.yaw, ang, 1.8, dt);
+        } else {
+          this.yaw = U.angleDamp(this.yaw, this.escort.dir, 1.2, dt);
+        }
+        const relIdle = U.wrapPi(this.escort.dir - this.yaw);
+        this.turretYaw = U.angleDamp(this.turretYaw, relIdle, 1.4, dt);
+        this.parts.turret.rotation.y = this.turretYaw;
+        if (this.parts.wheels) for (const w of this.parts.wheels) w.rotation.x += dt * 6;
+        // трек по земле
+        this.trackDust = (this.trackDust || 0) - dt;
+        if (d > 4 && this.trackDust <= 0) {
+          this.trackDust = 0.25;
+          this.ctx.fx.dustBurst(new T.Vector3(this.x, this.groundY() + 0.2, this.z), 1.6, 2);
+        }
+      }
       if (target) {
         const d = this.distTo(target);
         const ang = this.angleTo(target);
@@ -487,6 +524,22 @@ const Entities = (() => {
     updateHeli(dt, world, target) {
       this.orbit += dt * 0.32;
       let gx, gz;
+      if (!target && this.escort) {
+        gx = this.escort.x + Math.cos(this.orbit) * 45;
+        gz = this.escort.z + Math.sin(this.orbit) * 45;
+        const dx = gx - this.x, dz = gz - this.z;
+        const d = Math.hypot(dx, dz) || 1;
+        const k = Math.min(this.speed * dt, d) / d;
+        this.x += dx * k; this.z += dz * k;
+        this.y = U.damp(this.y, this.groundY() + this.alt, 2, dt);
+        this.yaw = U.angleDamp(this.yaw, Math.atan2(dx, dz), 2, dt);
+        this.mesh.position.set(this.x, this.y, this.z);
+        this.mesh.rotation.set(-0.1, this.yaw, Math.sin(this.orbit) * 0.14, 'YXZ');
+        this.parts.blades.rotation.y += dt * 34;
+        this.parts.tailBlades.rotation.x += dt * 40;
+        this.parts.beacon.visible = Math.sin(this.time * 6) > 0;
+        return;
+      }
       if (target) {
         gx = target.x + Math.cos(this.orbit) * this.keepRange;
         gz = target.z + Math.sin(this.orbit) * this.keepRange;

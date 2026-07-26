@@ -584,7 +584,10 @@ const Voice = (() => {
       this.hud = hud;
       this.formant = new FormantVoice(audio);
       this.tts = new TTSVoice();
-      this.mode = U.Store.read('voiceMode', 'radio');   // radio | tts | off
+      // по умолчанию — системный русский голос (настоящая речь);
+      // радио-синтез остаётся запасным вариантом
+      const saved = U.Store.read('voiceMode', null);
+      this.mode = saved || 'auto';   // auto | radio | tts | off
       this.busyUntil = 0;
       this.cooldowns = new Map();
       this.queue = [];
@@ -641,11 +644,18 @@ const Voice = (() => {
       return this.speak(text, opts);
     }
 
+    resolveMode() {
+      if (this.mode === 'auto') return this.tts.enabled ? 'tts' : 'radio';
+      if (this.mode === 'tts' && !this.tts.enabled) return 'radio';
+      return this.mode;
+    }
+
     speak(text, opts = {}) {
       if (this.mode === 'off' || !text) return 0;
       const profile = opts.profile || (opts.unit ? this.profileFor(opts.unit) : 'soldier');
+      const mode = this.resolveMode();
       let dur = 0;
-      if (this.mode === 'tts' && this.tts.enabled) {
+      if (mode === 'tts') {
         dur = this.tts.speak(text, profile, opts);
       } else {
         dur = this.formant.speak(text, profile, Object.assign({
@@ -668,7 +678,7 @@ const Voice = (() => {
     /* крик боли/смерти конкретного бойца */
     shout(kind, unit, opts = {}) {
       if (this.mode === 'off') return 0;
-      if (this.mode === 'tts') {
+      if (this.resolveMode() === 'tts') {
         // системный TTS не умеет кричать — используем формантный движок
         return this.formant.shout(kind, this.profileFor(unit),
           Object.assign({ pos: unit ? { x: unit.x, z: unit.z } : null }, opts));

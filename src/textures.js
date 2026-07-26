@@ -120,36 +120,36 @@ const TEX = (() => {
   /* --- земля: трава/грязь --- */
   function groundColor(size = 512) {
     const cv = canvas(size), ctx = cv.getContext('2d');
-    fillNoise(ctx, size, { scale: 0.018, octaves: 5, base: [34, 46, 32], amp: [26, 30, 22], warp: 8 });
+    fillNoise(ctx, size, { scale: 0.018, octaves: 5, base: [96, 116, 72], amp: [30, 34, 24], warp: 8 });
     // пятна грязи
     ctx.globalAlpha = 0.5;
     for (let i = 0; i < 90; i++) {
       const x = Math.random() * size, y = Math.random() * size, r = U.rand(8, 46);
       const g = ctx.createRadialGradient(x, y, 0, x, y, r);
       const dark = U.chance(0.5);
-      g.addColorStop(0, dark ? 'rgba(46,38,28,0.75)' : 'rgba(58,72,44,0.5)');
+      g.addColorStop(0, dark ? 'rgba(118,98,66,0.55)' : 'rgba(126,146,86,0.45)');
       g.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(x, y, r, 0, U.TAU); ctx.fill();
     }
     ctx.globalAlpha = 1;
     // травинки-детали
-    speckle(ctx, size, 2600, ['#3d5a34', '#31492b', '#4a6b3c', '#2a3c26'], 0.4, 1.5);
+    speckle(ctx, size, 2600, ['#7d9c5e', '#6b8a50', '#93b06c', '#5c7845'], 0.4, 1.5);
     // мелкие камни
-    speckle(ctx, size, 320, ['#5a5b55', '#43443f', '#6a6b63'], 0.6, 1.8);
+    speckle(ctx, size, 320, ['#9a9b92', '#7d7e77', '#adaea4'], 0.6, 1.8);
     return cv;
   }
 
   /* --- кора дерева --- */
   function barkColor(size = 256) {
     const cv = canvas(size), ctx = cv.getContext('2d');
-    fillNoise(ctx, size, { scale: 0.03, octaves: 4, base: [56, 44, 34], amp: [22, 18, 14] });
+    fillNoise(ctx, size, { scale: 0.03, octaves: 4, base: [118, 98, 76], amp: [26, 22, 18] });
     // вертикальные борозды
     ctx.save();
     for (let i = 0; i < 120; i++) {
       const x = Math.random() * size;
       ctx.globalAlpha = U.rand(0.06, 0.24);
-      ctx.strokeStyle = U.chance(0.5) ? '#241a12' : '#7a6248';
+      ctx.strokeStyle = U.chance(0.5) ? '#5c4632' : '#b49878';
       ctx.lineWidth = U.rand(1, 4.5);
       ctx.beginPath();
       let y = 0, xx = x;
@@ -162,20 +162,20 @@ const TEX = (() => {
       ctx.stroke();
     }
     ctx.restore();
-    speckle(ctx, size, 400, ['#3b3025', '#6d5a44'], 0.5, 1.6);
+    speckle(ctx, size, 400, ['#7a6248', '#c0a888'], 0.5, 1.6);
     return cv;
   }
 
   /* --- хвоя --- */
   function needleColor(size = 256) {
     const cv = canvas(size), ctx = cv.getContext('2d');
-    fillNoise(ctx, size, { scale: 0.05, octaves: 3, base: [26, 44, 32], amp: [18, 26, 16] });
+    fillNoise(ctx, size, { scale: 0.05, octaves: 3, base: [74, 106, 66], amp: [22, 30, 20] });
     ctx.save();
     for (let i = 0; i < 1400; i++) {
       const x = Math.random() * size, y = Math.random() * size;
       const a = U.rand(U.TAU), l = U.rand(3, 11);
       ctx.globalAlpha = U.rand(0.15, 0.5);
-      ctx.strokeStyle = U.pick(['#1d3423', '#2f5236', '#41694a', '#16261a']);
+      ctx.strokeStyle = U.pick(['#5c8a52', '#6f9f60', '#87b476', '#4a7444']);
       ctx.lineWidth = U.rand(0.6, 1.6);
       ctx.beginPath(); ctx.moveTo(x, y);
       ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
@@ -186,7 +186,7 @@ const TEX = (() => {
 
   /* --- камуфляж (форма бойцов) --- */
   function camoColor(size = 256, palette) {
-    const pal = palette || ['#2f3a26', '#3e4a30', '#232b1d', '#4a563a'];
+    const pal = palette || ['#6c7a52', '#7e8c60', '#55603f', '#93a072'];
     const cv = canvas(size), ctx = cv.getContext('2d');
     ctx.fillStyle = pal[0]; ctx.fillRect(0, 0, size, size);
     for (let layer = 1; layer < pal.length; layer++) {
@@ -206,17 +206,17 @@ const TEX = (() => {
     }
     // потёртости
     ctx.globalAlpha = 0.12;
-    speckle(ctx, size, 700, ['#1a1f16', '#5c6a4a'], 0.5, 2.2);
+    speckle(ctx, size, 700, ['#48513a', '#98a67c'], 0.5, 2.2);
     ctx.globalAlpha = 1;
     return cv;
   }
 
   /* --- крашеный металл техники --- */
-  function armorColor(size = 256, tint = [46, 56, 44]) {
+  function armorColor(size = 256, tint = [116, 128, 100]) {
     const cv = canvas(size), ctx = cv.getContext('2d');
     fillNoise(ctx, size, { scale: 0.04, octaves: 4, base: tint, amp: [10, 12, 10] });
     // сварные швы и панели
-    ctx.strokeStyle = 'rgba(20,24,20,0.5)';
+    ctx.strokeStyle = 'rgba(64,72,58,0.45)';
     ctx.lineWidth = 2;
     for (let i = 0; i < 7; i++) {
       const y = Math.random() * size;
@@ -229,21 +229,21 @@ const TEX = (() => {
     // заклёпки
     for (let i = 0; i < 120; i++) {
       const x = Math.random() * size, y = Math.random() * size;
-      ctx.fillStyle = 'rgba(120,130,115,0.35)';
+      ctx.fillStyle = 'rgba(180,190,168,0.35)';
       ctx.beginPath(); ctx.arc(x, y, 1.6, 0, U.TAU); ctx.fill();
-      ctx.fillStyle = 'rgba(10,12,10,0.4)';
+      ctx.fillStyle = 'rgba(48,54,44,0.4)';
       ctx.beginPath(); ctx.arc(x + 0.7, y + 0.7, 1.2, 0, U.TAU); ctx.fill();
     }
     // сколы краски и ржавчина
-    speckle(ctx, size, 260, ['#6a5236', '#4a3a24', '#8a7a5a'], 0.5, 2.4);
-    streaks(ctx, size, 70, '#241d12', 40, 2, 0.18);
+    speckle(ctx, size, 260, ['#9a7a52', '#7a6238', '#b8a882'], 0.5, 2.4);
+    streaks(ctx, size, 70, '#5a4c32', 40, 2, 0.18);
     return cv;
   }
 
   /* --- ржавый металл сиреноголового --- */
   function rustColor(size = 512) {
     const cv = canvas(size), ctx = cv.getContext('2d');
-    fillNoise(ctx, size, { scale: 0.02, octaves: 5, base: [58, 48, 42], amp: [28, 22, 18], warp: 12 });
+    fillNoise(ctx, size, { scale: 0.02, octaves: 5, base: [124, 108, 96], amp: [32, 26, 22], warp: 12 });
     // рыжие пятна
     for (let i = 0; i < 140; i++) {
       const x = Math.random() * size, y = Math.random() * size, r = U.rand(6, 54);
@@ -253,16 +253,16 @@ const TEX = (() => {
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(x, y, r, 0, U.TAU); ctx.fill();
     }
-    streaks(ctx, size, 160, '#3a2416', 70, 3, 0.22);
-    speckle(ctx, size, 900, ['#2a2320', '#6b5340', '#171412'], 0.4, 2);
+    streaks(ctx, size, 160, '#6e4c30', 70, 3, 0.22);
+    speckle(ctx, size, 900, ['#5c524c', '#a8886a', '#3e3834'], 0.4, 2);
     return cv;
   }
 
   /* --- сетка динамика (для рупоров) --- */
   function grilleColor(size = 256) {
     const cv = canvas(size), ctx = cv.getContext('2d');
-    ctx.fillStyle = '#0d0f10'; ctx.fillRect(0, 0, size, size);
-    ctx.strokeStyle = '#2b2f31';
+    ctx.fillStyle = '#3a3f42'; ctx.fillRect(0, 0, size, size);
+    ctx.strokeStyle = '#6c7477';
     ctx.lineWidth = 2;
     const step = 12;
     for (let y = step / 2; y < size; y += step) {
@@ -281,7 +281,7 @@ const TEX = (() => {
   /* --- кожа/плоть (хаски) --- */
   function fleshColor(size = 256) {
     const cv = canvas(size), ctx = cv.getContext('2d');
-    fillNoise(ctx, size, { scale: 0.03, octaves: 4, base: [92, 80, 74], amp: [22, 18, 16], warp: 6 });
+    fillNoise(ctx, size, { scale: 0.03, octaves: 4, base: [138, 120, 110], amp: [26, 22, 20], warp: 6 });
     ctx.globalAlpha = 0.35;
     streaks(ctx, size, 120, '#3a1c1c', 40, 2.4, 0.4);
     ctx.globalAlpha = 1;
@@ -393,9 +393,9 @@ const TEX = (() => {
       const w = size * U.rand(0.05, 0.1);
       const h = size * U.rand(0.5, 0.98);
       const g = ctx.createLinearGradient(0, size, 0, size - h);
-      g.addColorStop(0, '#22331f');
-      g.addColorStop(0.6, '#3c5a32');
-      g.addColorStop(1, '#587a41');
+      g.addColorStop(0, '#4a6b3a');
+      g.addColorStop(0.6, '#6f9a52');
+      g.addColorStop(1, '#9ec46e');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.moveTo(x - w, size);
@@ -436,7 +436,7 @@ const TEX = (() => {
       case 'bark': tex = toTexture(barkColor(256), { repeat: 2 }); break;
       case 'needle': tex = toTexture(needleColor(256), { repeat: 1 }); break;
       case 'camo': tex = toTexture(camoColor(256), { repeat: 1 }); break;
-      case 'camoDark': tex = toTexture(camoColor(256, ['#232a1c', '#2c3423', '#191e14', '#374028']), { repeat: 1 }); break;
+      case 'camoDark': tex = toTexture(camoColor(256, ['#525c3c', '#5f6a46', '#414a30', '#6d7a52']), { repeat: 1 }); break;
       case 'armor': tex = toTexture(armorColor(256), { repeat: 2 }); break;
       case 'armorN': tex = normalFromCanvas(armorColor(256), 1.2); tex.repeat.set(2, 2); break;
       case 'rust': tex = toTexture(rustColor(512), { repeat: 2 }); break;

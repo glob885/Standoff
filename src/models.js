@@ -664,10 +664,10 @@ const Models = (() => {
 
     // руки
     const handParts = [
-      { geo: gBox(0.1, 0.12, 0.14, 0.02, -0.11, 0.14, { x: -0.3 }), color: C.boot },
-      { geo: gBox(0.12, 0.12, 0.34, 0.05, -0.16, 0.36, { x: -0.25 }), color: C.camo },
-      { geo: gBox(0.1, 0.11, 0.16, -0.01, -0.09, -0.4), color: C.boot },
-      { geo: gBox(0.12, 0.12, 0.3, -0.09, -0.16, -0.28, { y: 0.35, x: -0.1 }), color: C.camo }
+      { geo: gBox(0.1, 0.12, 0.14, 0.02, -0.11, 0.14, { x: -0.3 }), color: 0x2f2a24 },
+      { geo: gBox(0.12, 0.12, 0.34, 0.05, -0.16, 0.36, { x: -0.25 }), color: 0x8a9470 },
+      { geo: gBox(0.1, 0.11, 0.16, -0.01, -0.09, -0.4), color: 0x2f2a24 },
+      { geo: gBox(0.12, 0.12, 0.3, -0.09, -0.16, -0.28, { y: 0.35, x: -0.1 }), color: 0x8a9470 }
     ];
     const hands = new T.Mesh(mergeColored(handParts), M.soldier);
     g.add(hands);
@@ -683,9 +683,10 @@ const Models = (() => {
 
     const flash = new T.Sprite(new T.SpriteMaterial({
       map: TEX.get('flash'), color: 0xffd9a0, transparent: true,
-      blending: T.AdditiveBlending, depthWrite: false, opacity: 0
+      blending: T.AdditiveBlending, depthWrite: false, opacity: 0,
+      sizeAttenuation: true
     }));
-    flash.scale.set(0.42, 0.42, 1);
+    flash.scale.set(0.22, 0.22, 1);
     flash.position.set(0, 0.02, -1.02);
     g.add(flash);
 

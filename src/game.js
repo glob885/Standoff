@@ -487,6 +487,148 @@ const Game = (() => {
     }
   }
 
+
+  /* ============================================================
+     ОТРЯД: идёт по маршруту сам, игрок — один из бойцов
+     ============================================================ */
+  class SquadManager {
+    constructor(game) {
+      this.game = game;
+      this.anchor = { x: 0, z: 0 };     // «острие» наступления
+      this.dir = 0;                     // курс отряда
+      this.route = [];                  // точки маршрута
+      this.routeIdx = 0;
+      this.speed = 3.1;
+      this.mode = 'advance';            // advance | hold | assault
+      this.standoff = 34;               // дистанция до объекта в бою
+      this.slots = [];
+      this.reformT = 0;
+      this.waitForPlayer = 45;          // если игрок сильно отстал — отряд ждёт
+    }
+
+    setRoute(points, startX, startZ) {
+      this.route = points.slice();
+      this.routeIdx = 0;
+      this.anchor.x = startX;
+      this.anchor.z = startZ;
+      this.mode = 'advance';
+      this.buildSlots();
+    }
+
+    /* два фланга в линию с уступом — не клоны в затылок */
+    buildSlots() {
+      const soldiers = this.game.world.soldiers;
+      this.slots = [];
+      let n = 0;
+      for (const s of soldiers) {
+        const side = (n % 2) ? 1 : -1;
+        const rank = Math.floor(n / 2);
+        // «клин»: чем дальше от центра, тем сильнее отставание
+        const lateral = side * (3.4 + (rank % 8) * 2.9 + U.rand(-0.6, 0.6));
+        const depth = -(rank % 8) * 1.5 - Math.floor(rank / 8) * 5.5 + U.rand(-1.2, 1.2);
+        s.slot = { lateral, depth, jitterPhase: U.rand(0, U.TAU), jitterSpeed: U.rand(0.2, 0.5) };
+        s.pace = U.rand(0.88, 1.14);
+        this.slots.push(s.slot);
+        n++;
+      }
+    }
+
+    /* центр живого отряда — чтобы техника ехала за пехотой */
+    livingCenter() {
+      const w = this.game.world;
+      let x = 0, z = 0, n = 0;
+      for (const s of w.soldiers) {
+        if (s.dead) continue;
+        x += s.x; z += s.z; n++;
+      }
+      return n ? { x: x / n, z: z / n } : { x: this.anchor.x, z: this.anchor.z };
+    }
+
+    update(dt) {
+      const game = this.game;
+      const world = game.world;
+      const player = game.player;
+      const boss = world.boss && !world.boss.dead ? world.boss : null;
+
+      /* --- куда двигать острие --- */
+      let targetX = this.anchor.x, targetZ = this.anchor.z, speed = this.speed;
+
+      if (boss) {
+        // бой: держим дистанцию и «обтекаем» объект
+        const dx = boss.x - this.anchor.x, dz = boss.z - this.anchor.z;
+        const d = Math.hypot(dx, dz) || 1;
+        const desired = this.standoff + Math.sin(game.time * 0.25) * 6;
+        const radial = (d - desired);
+        const tangent = Math.sin(game.time * 0.18) * 0.7;
+        targetX = this.anchor.x + (dx / d) * radial * 0.6 + (-dz / d) * tangent * 8;
+        targetZ = this.anchor.z + (dz / d) * radial * 0.6 + (dx / d) * tangent * 8;
+        speed = 4.2;
+        this.dir = Math.atan2(dx, dz);
+      } else if (this.route.length) {
+        const wp = this.route[Math.min(this.routeIdx, this.route.length - 1)];
+        const dx = wp.x - this.anchor.x, dz = wp.z - this.anchor.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 6 && this.routeIdx < this.route.length - 1) this.routeIdx++;
+        if (d > 0.5) {
+          targetX = this.anchor.x + (dx / d) * speed;
+          targetZ = this.anchor.z + (dz / d) * speed;
+          this.dir = Math.atan2(dx, dz);
+        }
+      }
+
+      /* --- ждём отставших: игрока и хвост отряда --- */
+      let allowMove = true;
+      if (player && !player.dead) {
+        const lag = Math.hypot(player.x - this.anchor.x, player.z - this.anchor.z);
+        if (lag > this.waitForPlayer) allowMove = false;
+      }
+      let lagging = 0, alive = 0;
+      for (const s of world.soldiers) {
+        if (s.dead || s === player) continue;
+        alive++;
+        if (Math.hypot(s.x - this.anchor.x, s.z - this.anchor.z) > 62) lagging++;
+      }
+      if (alive && lagging / alive > 0.35) allowMove = false;
+
+      if (allowMove) {
+        const dx = targetX - this.anchor.x, dz = targetZ - this.anchor.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.01) {
+          const step = Math.min(speed * dt, d);
+          this.anchor.x += (dx / d) * step;
+          this.anchor.z += (dz / d) * step;
+        }
+      }
+
+      const lim = game.terrain ? game.terrain.opts.size * 0.95 : 200;
+      this.anchor.x = U.clamp(this.anchor.x, -lim, lim);
+      this.anchor.z = U.clamp(this.anchor.z, -lim, lim);
+
+      /* --- раздаём позиции --- */
+      const sin = Math.sin(this.dir), cos = Math.cos(this.dir);
+      for (const s of world.soldiers) {
+        if (s === player || s.dead || !s.slot) continue;
+        const jitter = Math.sin(game.time * s.slot.jitterSpeed + s.slot.jitterPhase);
+        const lat = s.slot.lateral + jitter * 1.3;
+        const dep = s.slot.depth + Math.cos(game.time * s.slot.jitterSpeed * 0.7 + s.slot.jitterPhase) * 0.9;
+        // локальные оси: вперёд = (sin, cos), вбок = (cos, -sin)
+        s.formation.x = this.anchor.x + sin * dep + cos * lat;
+        s.formation.z = this.anchor.z + cos * dep - sin * lat;
+        s.squadDir = this.dir;
+      }
+
+      /* --- техника: идёт за пехотой, если нет цели --- */
+      for (const v of world.vehicles) {
+        if (v.wrecked) continue;
+        v.escort = {
+          x: this.anchor.x - sin * (v.kind === 'heli' ? -30 : 26) + cos * (v.escortSide || 0),
+          z: this.anchor.z - cos * (v.kind === 'heli' ? -30 : 26) - sin * (v.escortSide || 0),
+          dir: this.dir
+        };
+      }
+    }
+  }
+
   /* ============================================================
      КИНЕМАТОГРАФИЯ
      ============================================================ */
@@ -732,6 +874,7 @@ const Game = (() => {
       this.voice = new Voice.VoiceDirector(this.audio, this.hud);
       this.cinematic.voice = this.voice;
       this.touch = new TouchUI.TouchController(this);
+      this.squad = new SquadManager(this);
 
       this.ctx = {
         scene: this.scene,
@@ -745,14 +888,15 @@ const Game = (() => {
 
       // viewmodel
       this.viewmodel = Models.makeViewmodel();
+      this.viewmodel.scale.setScalar(0.92);
       this.viewmodel.visible = false;
       this.camera.add(this.viewmodel);
       this.vmState = {
         recoil: 0, bob: 0, ads: 0, kickY: 0, kickX: 0, reloadT: 0
       };
-      this.gunLight = new T.PointLight(0xcfe0ee, 28, 7, 2);
-      this.gunLight.position.set(0.25, 0.05, -0.35);
-      this.camera.add(this.gunLight);
+      // отдельный свет для оружия не нужен: мир достаточно освещён,
+      // а точечный источник вплотную давал белый пересвет
+      this.gunLight = null;
 
       addEventListener('resize', () => this.onResize());
       this.onResize();
@@ -941,26 +1085,21 @@ const Game = (() => {
       // 49 бойцов двумя флангами
       for (let i = 1; i < 50; i++) {
         const side = i % 2 ? 1 : -1;
-        const row = Math.floor((i - 1) / 2);
-        const ox = side * (3.5 + (row % 7) * 2.4);
-        const oz = 2 + Math.floor(row / 7) * 3.2;
+        const rank = Math.floor((i - 1) / 2);
+        const ox = side * (3.4 + (rank % 8) * 2.9);
+        const oz = -(rank % 8) * 1.5 - Math.floor(rank / 8) * 5.5;
         const s = new Entities.Soldier(this.ctx, cx + ox, cz + oz, { index: i, dark: i % 3 === 0 });
         s.formation.x = cx + ox; s.formation.z = cz + oz;
-        s.offset = { x: ox, z: oz };
         s.yaw = facing || 0;
         w.soldiers.push(s);
       }
       this.player.yaw = facing || 0;
     }
 
-    updateFormation() {
-      const p = this.player;
-      if (!p) return;
-      for (const s of this.world.soldiers) {
-        if (s === p || s.dead || !s.offset) continue;
-        s.formation.x = p.x + s.offset.x;
-        s.formation.z = p.z + s.offset.z;
-      }
+    updateFormation(dt) {
+      // строй ведёт SquadManager: отряд идёт по своему маршруту,
+      // игрок свободен и никем не «магнитится»
+      if (this.squad) this.squad.update(dt);
     }
 
     buildSearchLevel() {
@@ -1009,6 +1148,11 @@ const Game = (() => {
       this.level = 1;
       this.voiceTimer = 10;
       this.markWaypoint();
+      this.squad.setRoute(
+        this.waypoints.map(w => ({ x: w.x, z: w.z })), 0, 146);
+      this.squad.speed = 3.0;
+      let side = -1;
+      for (const v of this.world.vehicles) { v.escortSide = side * U.rand(16, 30); side *= -1; }
     }
 
     buildBattleLevel() {
@@ -1036,6 +1180,10 @@ const Game = (() => {
       w.vehicles.push(new V(this.ctx, 'heli', -70, 40));
       w.vehicles.push(new V(this.ctx, 'heli', 70, 40));
       w.boss = new Entities.Boss(this.ctx, 0, -40);
+      this.squad.setRoute([], 0, 66);
+      this.squad.speed = 4.2;
+      let bside = -1;
+      for (const v of w.vehicles) { v.escortSide = bside * U.rand(20, 44); bside *= -1; }
       this.audio.heliLoop(true);
       this.audio.dreadLoop(true);
       this.level = 2;
@@ -1234,11 +1382,7 @@ const Game = (() => {
       this.hud.toast('БОЕЦ ПОГИБ · ПЕРЕХОД К СЛЕДУЮЩЕМУ', 2.6);
       this.hurt = 1;
       this.shake(1.0, 0);
-      // пересобрать смещения строя
-      for (const s of this.world.soldiers) {
-        if (s === this.player || s.dead) continue;
-        s.offset = { x: s.x - this.player.x, z: s.z - this.player.z };
-      }
+      // строй продолжает идти сам — пересобирать ничего не нужно
     }
 
     finish(win) {
@@ -1614,7 +1758,7 @@ const Game = (() => {
         case 'play': {
           this.stats.time += dt;
           this.updatePlayer(dt);
-          this.updateFormation();
+          this.updateFormation(dt);
           this.world.update(dt);
           if (this.level === 1) this.updateSearch(dt);
           if (this.world.aliveSoldiers() === 0 && !this.ended) { this.ended = true; this.finish(false); }
