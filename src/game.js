@@ -61,7 +61,7 @@ const Game = (() => {
         this.locked = document.pointerLockElement === this.canvas;
       });
 
-      if (this.touch) this.bindTouch();
+      // тач-управление берёт на себя TouchUI (src/touch.js)
     }
 
     requestLock() {
@@ -516,6 +516,7 @@ const Game = (() => {
       this.shots = shots; this.lines = lines;
       this.shotIdx = 0; this.shotT = 0;
       this.lineIdx = 0; this.lineT = 0; this.typed = 0;
+      this.spokenIdx = -1;
       this.onDone = onDone;
       this.el.classList.remove('hidden');
       this.hud.hide();
@@ -525,6 +526,10 @@ const Game = (() => {
     render() {
       const l = this.lines[this.lineIdx];
       if (!l) { this.textEl.innerHTML = ''; return; }
+      if (this.voice && this.spokenIdx !== this.lineIdx) {
+        this.spokenIdx = this.lineIdx;
+        this.voice.cutsceneLine(l.who || '', l.text);
+      }
       const shown = l.text.slice(0, Math.floor(this.typed));
       this.textEl.innerHTML =
         (l.who ? `<span class="who">${l.who}</span>` : '') +
@@ -724,6 +729,9 @@ const Game = (() => {
       });
       this.composer.setQuality(this.settings.quality);
       this.cinematic = new Cinematic(this.camera, this.hud);
+      this.voice = new Voice.VoiceDirector(this.audio, this.hud);
+      this.cinematic.voice = this.voice;
+      this.touch = new TouchUI.TouchController(this);
 
       this.ctx = {
         scene: this.scene,
@@ -742,8 +750,8 @@ const Game = (() => {
       this.vmState = {
         recoil: 0, bob: 0, ads: 0, kickY: 0, kickX: 0, reloadT: 0
       };
-      this.gunLight = new T.PointLight(0xbcd4e0, 3, 5);
-      this.gunLight.position.set(0.2, -0.1, -0.4);
+      this.gunLight = new T.PointLight(0xcfe0ee, 28, 7, 2);
+      this.gunLight.position.set(0.25, 0.05, -0.35);
       this.camera.add(this.gunLight);
 
       addEventListener('resize', () => this.onResize());
@@ -811,6 +819,65 @@ const Game = (() => {
           U.Store.write('bloom', bloom.checked);
         };
       }
+      /* --- v3: голоса --- */
+      const voiceSel = byId('voiceSel');
+      if (voiceSel) {
+        voiceSel.value = this.voice.mode;
+        voiceSel.onchange = () => {
+          this.voice.setMode(voiceSel.value);
+          if (voiceSel.value !== 'off') {
+            this.voice.speak('Проверка связи. Приём.', { profile: 'commander', who: 'КОМАНДИР' });
+          }
+        };
+      }
+      const subsChk = byId('subsChk');
+      if (subsChk) {
+        subsChk.checked = this.voice.subtitles;
+        subsChk.onchange = () => this.voice.setSubtitles(subsChk.checked);
+      }
+
+      /* --- v3: управление на телефоне --- */
+      const tc = this.touch;
+      const touchSect = byId('touchSect');
+      if (tc && !tc.enabled && touchSect) {
+        // на ПК прячем блок мобильных настроек
+        touchSect.style.display = 'none';
+        for (const id of ['autoFireChk', 'dynStickChk', 'adsToggleChk', 'hapticsChk',
+          'leftHandChk', 'gyroChk', 'aimAssistRange', 'uiScaleRange', 'layoutBtn', 'layoutResetBtn']) {
+          const el = byId(id);
+          if (el && el.closest('.setting, .menu-row')) el.closest('.setting, .menu-row').style.display = 'none';
+        }
+      } else if (tc) {
+        const chk = (id, key) => {
+          const el = byId(id);
+          if (!el) return;
+          el.checked = !!tc.settings[key];
+          el.onchange = () => tc.setSetting(key, el.checked);
+        };
+        chk('autoFireChk', 'autoFire');
+        chk('dynStickChk', 'dynamicStick');
+        chk('adsToggleChk', 'adsToggle');
+        chk('hapticsChk', 'haptics');
+        chk('leftHandChk', 'leftHanded');
+        chk('gyroChk', 'gyro');
+        const aa = byId('aimAssistRange');
+        if (aa) {
+          aa.value = tc.settings.aimAssist;
+          aa.oninput = () => tc.setSetting('aimAssist', parseFloat(aa.value));
+        }
+        const us = byId('uiScaleRange');
+        if (us) {
+          us.value = tc.settings.uiScale;
+          us.oninput = () => tc.setSetting('uiScale', parseFloat(us.value));
+        }
+        on('layoutBtn', () => {
+          byId('settings').classList.add('hidden');
+          tc.setEditing(true);
+        });
+        on('layoutResetBtn', () => tc.resetLayout());
+        on('layoutDone', () => tc.setEditing(false));
+      }
+
       // клик по канвасу — захват мыши
       this.canvas.addEventListener('click', () => {
         this.audio.init(); this.audio.resume();
@@ -848,6 +915,19 @@ const Game = (() => {
       this.ctx.fx = this.fx;
       const f = this.scene.fog;
       this.terrain.setFog(f.color, f.density);
+
+      if (this.props) this.props.dispose();
+      if (this.ambience) this.ambience.dispose();
+      this.props = new Detail.Props(this.scene, this.terrain, {
+        seed: (opts && opts.seed) || 99,
+        quality: this.settings.quality,
+        camp: !opts || opts.camp !== false,
+        logs: this.settings.quality === 'low' ? 18 : 42,
+        stumps: this.settings.quality === 'low' ? 12 : 28,
+        ferns: this.settings.quality === 'low' ? 0 : this.settings.quality === 'medium' ? 120 : 240,
+        crates: 16, sandbags: 22, barrels: 12
+      });
+      this.ambience = new Detail.Ambience(this.scene, this.terrain, this.settings.quality);
     }
 
     spawnSquad(cx, cz, facing) {
@@ -889,7 +969,25 @@ const Game = (() => {
       this.scene.fog.density = 0.0075;
       this.sky.apply('overcast', { hemi: this.hemi, dir: this.sun }, this.renderer, this.scene.fog);
       this.refreshEnvMap();
+      const path = [
+        { x: 0, z: 176 }, { x: 0, z: 150 }, { x: 6, z: 96 },
+        { x: -34, z: 36 }, { x: 26, z: -26 }, { x: 0, z: -86 }
+      ];
+      const distToSeg = (x, z, a, b) => {
+        const dx = b.x - a.x, dz = b.z - a.z;
+        const len2 = dx * dx + dz * dz || 1;
+        let t = ((x - a.x) * dx + (z - a.z) * dz) / len2;
+        t = U.clamp01(t);
+        return Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t));
+      };
+      const avoidPath = (x, z) => {
+        for (let i = 0; i < path.length - 1; i++) {
+          if (distToSeg(x, z, path[i], path[i + 1]) < 9) return true;
+        }
+        return false;
+      };
       this.buildTerrain({
+        avoid: avoidPath,
         size: 200, seed: 20250726, segments: 128, amplitude: 7,
         treeCount: this.settings.quality === 'low' ? 300 : this.settings.quality === 'medium' ? 620 : 950,
         grassCount: this.settings.quality === 'low' ? 0 : this.settings.quality === 'medium' ? 5000 : 9000,
@@ -923,7 +1021,7 @@ const Game = (() => {
         size: 230, seed: 777, segments: 128, amplitude: 5,
         treeCount: this.settings.quality === 'low' ? 260 : this.settings.quality === 'medium' ? 520 : 800,
         grassCount: this.settings.quality === 'low' ? 0 : this.settings.quality === 'medium' ? 4500 : 8000,
-        rockCount: 70, bushCount: 180, clearingRadius: 55
+        rockCount: 70, bushCount: 180, clearingRadius: 118
       });
       this.spawnSquad(0, 70, 0);
       const V = Entities.Vehicle;
@@ -997,6 +1095,7 @@ const Game = (() => {
       this.buildBattleLevel();
       this.beginPlay(2);
       this.hud.toast('ОГОНЬ ПО ЦЕЛИ!', 3);
+      this.voice.say('contact', { profile: 'commander', who: 'КОМАНДИР', priority: 2, cooldown: 0 });
       this.audio.siren(this.world.boss, 3.2, 0.8);
     }
 
@@ -1052,6 +1151,7 @@ const Game = (() => {
       } else {
         this.hud.toast('ФАЗА II · ОН УСКОРЯЕТСЯ', 2.6);
         this.audio.siren(this.world.boss, 2.2, 0.7);
+        this.voice.say('phase2', { profile: 'commander', who: 'КОМАНДИР', priority: 2, cooldown: 0 });
       }
     }
 
@@ -1078,6 +1178,8 @@ const Game = (() => {
     onBossScreamStart() {
       this.radialTarget = 1;
       this.hud.toast('ОН КРИЧИТ — БЕЙ В ДИНАМИКИ!', 2.4);
+      this.voice.say('scream', { profile: 'commander', who: 'КОМАНДИР', priority: 2, cooldown: 4 });
+      if (this.touch) this.touch.haptic([0, 60, 40, 120]);
     }
     onBossScreamEnd() { this.radialTarget = 0; }
 
@@ -1086,6 +1188,7 @@ const Game = (() => {
       this.ended = true;
       const boss = this.world.boss;
       this.hud.toast('ЦЕЛЬ НЕЙТРАЛИЗОВАНА', 3.5);
+      this.voice.say('bossDown', { profile: 'commander', who: 'КОМАНДИР', priority: 2, cooldown: 0 });
       for (const h of this.world.husks) h.die();
       setTimeout(() => {
         this.state = 'cut';
@@ -1107,10 +1210,18 @@ const Game = (() => {
 
     onSoldierDown(s) {
       this.stats.lost++;
+      if (this.voice) {
+        this.voice.shout('death', s, { gain: 0.9 });
+        if (Math.random() < 0.4) {
+          setTimeout(() => this.voice.say('manDown', { profile: 'commander', who: 'КОМАНДИР', cooldown: 9 }), 700);
+        }
+      }
       if (s === this.player) this.takeOverNextSoldier();
     }
     onVehicleLost(v) {
       this.stats.vehLost++;
+      if (this.voice) this.voice.say('vehicleLost', { profile: 'commander', who: 'КОМАНДИР', cooldown: 8 });
+      if (this.touch) this.touch.hapticExplosion();
       this.hud.toast(v.kind === 'heli' ? 'ВЕРТОЛЁТ СБИТ' : 'ТЕХНИКА ПОТЕРЯНА', 2.2);
     }
 
@@ -1187,7 +1298,7 @@ const Game = (() => {
         size: 150, seed: 4242, segments: 96, amplitude: 6,
         treeCount: this.settings.quality === 'low' ? 240 : 520,
         grassCount: this.settings.quality === 'low' ? 0 : 5000,
-        rockCount: 50, bushCount: 140, clearingRadius: 18
+        rockCount: 50, bushCount: 140, clearingRadius: 40
       });
       const boss = new Entities.Boss(this.ctx, 0, -34);
       boss.yaw = 0.5;
@@ -1202,6 +1313,9 @@ const Game = (() => {
       p.reloading = p.reloadTime;
       this.vmState.reloadT = p.reloadTime;
       this.audio.reloadSound();
+      if (this.voice && Math.random() < 0.45) {
+        this.voice.say('reload', { unit: p, who: 'БОЕЦ', cooldown: 10, radio: 0.2 });
+      }
     }
 
     playerShoot() {
@@ -1224,6 +1338,7 @@ const Game = (() => {
       this.viewmodel.userData.flash.material.opacity = 1;
 
       this.vmState.recoil = 1;
+      if (this.touch) this.touch.hapticShot();
       this.vmState.kickX += U.rand(0.006, 0.014);
       this.vmState.kickY += U.rand(-0.006, 0.006);
       this.shake(0.06, 0);
@@ -1231,9 +1346,13 @@ const Game = (() => {
 
       if (hit.entity) {
         this.stats.hits++;
+        if (this.touch) this.touch.hapticHit();
         const dmg = p.damage_ * (hit.mult || 1);
         const killed = hit.entity.damage(dmg, p, hit.point);
         this.hud.hit(killed);
+        if (killed && hit.entity.type === 'husk' && Math.random() < 0.25) {
+          this.voice.say('kill', { unit: p, who: 'БОЕЦ', cooldown: 7 });
+        }
         if (hit.entity.type === 'boss') this.fx.impact(hit.point, dir.clone().negate(), 'metal');
         else this.fx.bloodHit(hit.point, dir);
         this.audio.impact(hit.entity, hit.entity.type === 'boss' ? 'metal' : 'flesh');
@@ -1448,10 +1567,9 @@ const Game = (() => {
       this.voiceTimer -= dt;
       if (this.voiceTimer <= 0 && this.wpIndex > 0) {
         this.voiceTimer = U.rand(10, 18);
-        const lines = ['...кто здесь?...', '...помогите...', '...я свой, не стреляйте...', '...сюда, ребята...'];
-        this.hud.subtitle(U.pick(lines));
-        this.audio.radio(1.4, 0.25);
-        setTimeout(() => this.hud.subtitle(''), 2600);
+        const p2 = this.player;
+        const a = U.rand(U.TAU), r = U.rand(25, 45);
+        this.voice.lure({ x: p2.x + Math.cos(a) * r, z: p2.z + Math.sin(a) * r });
       }
     }
 
@@ -1478,6 +1596,10 @@ const Game = (() => {
       this.sky.update(dt, this.camera);
       if (this.terrain) this.terrain.update(dt, this.camera, this.time);
       if (this.fx) this.fx.update(dt, this.camera);
+      if (this.props) this.props.update(dt, this.time);
+      if (this.ambience) this.ambience.update(dt, this.camera, Math.sin(this.time * 0.3) * 0.6);
+      if (this.voice) this.voice.update(dt);
+      if (this.touch) this.touch.update(dt);
 
       // авто-снижение качества, если совсем плохо
       if (this.perf.history.length > 6 && this.settings.quality !== 'low' && this.perf.avg() < 24) {

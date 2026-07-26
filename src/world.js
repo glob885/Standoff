@@ -203,7 +203,7 @@ const WorldGen = (() => {
       this.opts = Object.assign({
         size: 220, seed: 1234, segments: 128, amplitude: 6,
         treeCount: 900, grassCount: 12000, rockCount: 90, bushCount: 260,
-        clearingRadius: 0, quality: 'high'
+        clearingRadius: 0, quality: 'high', avoid: null
       }, opts);
       this.objects = [];
       this.field = new HeightField(this.opts.size, this.opts.seed, this.opts.amplitude);
@@ -305,6 +305,7 @@ const WorldGen = (() => {
           const r = Math.sqrt(rng()) * size * 0.96;
           const x = Math.cos(a) * r, z = Math.sin(a) * r;
           if (clearingRadius > 0 && Math.hypot(x, z) < clearingRadius) continue;
+          if (this.opts.avoid && this.opts.avoid(x, z)) continue;
           if (this.field.slope(x, z) > 0.45) continue;
           const y = this.field.height(x, z);
           const sc = rng.range(0.7, 1.35);
@@ -370,6 +371,7 @@ const WorldGen = (() => {
       for (let i = 0; i < this.opts.bushCount; i++) {
         const a = rng.range(0, U.TAU), r = Math.sqrt(rng()) * this.opts.size * 0.95;
         const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (this.opts.avoid && this.opts.avoid(x, z)) { continue; }
         const sc = rng.range(0.6, 1.8);
         e.set(rng.range(0, 0.4), rng.range(0, U.TAU), rng.range(0, 0.4));
         q.setFromEuler(e);

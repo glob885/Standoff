@@ -207,6 +207,9 @@ const Entities = (() => {
       if (hitPos && this.ctx.fx) {
         this.ctx.fx.bloodHit(hitPos, new T.Vector3(0, 1, 0));
       }
+      if (this.ctx.game && this.ctx.game.voice && Math.random() < 0.3) {
+        this.ctx.game.voice.shout('pain', this, { gain: this.isPlayer ? 0.8 : 0.55 });
+      }
     }
 
     die(source) {
@@ -773,7 +776,12 @@ const Entities = (() => {
           world.spawnHusk(this.x + Math.cos(a) * r, this.z + Math.sin(a) * r);
         }
         this.ctx.audio.siren(this, 1.6, 0.5);
-        if (this.ctx.game) this.ctx.game.toast('ОН ЗОВЁТ ИХ · ДЕРЖАТЬ ФЛАНГИ', 2.2);
+        if (this.ctx.game) {
+          this.ctx.game.toast('ОН ЗОВЁТ ИХ · ДЕРЖАТЬ ФЛАНГИ', 2.2);
+          if (this.ctx.game.voice) {
+            this.ctx.game.voice.say('huskSpawn', { profile: 'commander', who: 'КОМАНДИР', cooldown: 8 });
+          }
+        }
       }
       if (this.stateT > 2.0) { this.state = 'walk'; this.stateT = 0; }
     }

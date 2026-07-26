@@ -147,6 +147,40 @@
       <div class="setting row">
         <label><input id="fpsChk" type="checkbox"> Показывать FPS</label>
       </div>
+
+      <div class="sect">ГОЛОСА</div>
+      <div class="setting">
+        <label>Озвучка реплик</label>
+        <select id="voiceSel">
+          <option value="radio">Радио-синтез (везде работает)</option>
+          <option value="tts">Голос устройства (если есть русский)</option>
+          <option value="off">Выключить</option>
+        </select>
+      </div>
+      <div class="setting row">
+        <label><input id="subsChk" type="checkbox"> Субтитры реплик</label>
+      </div>
+
+      <div class="sect" id="touchSect">УПРАВЛЕНИЕ НА ТЕЛЕФОНЕ</div>
+      <div class="setting row"><label><input id="autoFireChk" type="checkbox"> Автоогонь при наведении</label></div>
+      <div class="setting row"><label><input id="dynStickChk" type="checkbox"> Стик появляется под пальцем</label></div>
+      <div class="setting row"><label><input id="adsToggleChk" type="checkbox"> Прицел — тумблером</label></div>
+      <div class="setting row"><label><input id="hapticsChk" type="checkbox"> Вибро-отклик</label></div>
+      <div class="setting row"><label><input id="leftHandChk" type="checkbox"> Раскладка для левши</label></div>
+      <div class="setting row"><label><input id="gyroChk" type="checkbox"> Доводка гироскопом</label></div>
+      <div class="setting">
+        <label>Помощь прицеливания</label>
+        <input id="aimAssistRange" type="range" min="0" max="1" step="0.05">
+      </div>
+      <div class="setting">
+        <label>Размер кнопок</label>
+        <input id="uiScaleRange" type="range" min="0.75" max="1.5" step="0.05">
+      </div>
+      <div class="menu-row">
+        <button id="layoutBtn" class="ghost small">ПЕРЕДВИНУТЬ КНОПКИ</button>
+        <button id="layoutResetBtn" class="ghost small">СБРОС</button>
+      </div>
+
       <button id="settingsClose" class="big">ЗАКРЫТЬ</button>
     </div>
   </div>
@@ -182,6 +216,10 @@
     </div>
   </div>
 
+  <div id="layoutHint" class="layout-hint hidden">
+    ПЕРЕТАЩИ КНОПКИ ПАЛЬЦЕМ · <button id="layoutDone" class="a2hs-close">ГОТОВО</button>
+  </div>
+
   <div id="rotateHint" class="hidden">📱 ПОВЕРНИ ТЕЛЕФОН ГОРИЗОНТАЛЬНО</div>
 </div>
 
@@ -194,6 +232,9 @@
 <script src="src/models.js"></script>
 <script src="src/fx.js"></script>
 <script src="src/audio.js"></script>
+<script src="src/voice.js"></script>
+<script src="src/touch.js"></script>
+<script src="src/detail.js"></script>
 <script src="src/entities.js"></script>
 <script src="src/game.js"></script>
 <script src="main.js"></script>

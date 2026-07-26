@@ -35,7 +35,7 @@ const Models = (() => {
     M.glass = new T.MeshStandardMaterial({
       color: 0x1d3a44, roughness: 0.12, metalness: 0.4, transparent: true, opacity: 0.6
     });
-    M.gun = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.35 });
+    M.gun = new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.35, envMapIntensity: 1.6 });
     M.lamp = new T.MeshBasicMaterial({ color: 0xfff2cf });
     M.lampRed = new T.MeshBasicMaterial({ color: 0xff3b28 });
     M.eye = new T.MeshBasicMaterial({ color: 0xff4432 });
