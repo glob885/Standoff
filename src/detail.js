@@ -65,6 +65,9 @@ const Detail = (() => {
     }
 
     build() {
+      this.buildOutpost();
+      this.buildPowerLine();
+      this.buildWrecks();
       this.buildLogs();
       this.buildStumps();
       if (this.opts.quality !== 'low') this.buildFerns();
@@ -292,6 +295,173 @@ const Detail = (() => {
       tentMesh.rotation.y = rng.range(0, U.TAU);
       this.place(tx, tz, tentMesh, 0, false);
       this.add(tentMesh);
+    }
+
+    /* --- блокпост: бетонные блоки, шлагбаум, вышка, сетка --- */
+    buildOutpost() {
+      const rng = this.rng;
+      const spot = this.randomSpot(35, 80);
+      const dir = rng.range(0, U.TAU);
+      const grp = new T.Group();
+
+      // бетонные блоки поперёк дороги
+      for (let i = -3; i <= 3; i++) {
+        const block = new T.Mesh(Models.mergeColored([
+          { geo: Models.gBox(1.6, 1.0, 0.9, 0, 0.5, 0), color: 0xc9c9c2 },
+          { geo: Models.gBox(1.9, 0.16, 1.1, 0, 0.06, 0), color: 0xb0b0a8 },
+          { geo: Models.gBox(1.2, 0.2, 0.7, 0, 1.02, 0), color: 0xd6d6cc }
+        ]), this.mats.metal);
+        block.castShadow = true; block.receiveShadow = true;
+        const x = spot.x + Math.cos(dir) * i * 2.2;
+        const z = spot.z + Math.sin(dir) * i * 2.2;
+        block.position.set(x, this.terrain.height(x, z), z);
+        block.rotation.y = dir + rng.range(-0.15, 0.15);
+        grp.add(block);
+      }
+
+      // шлагбаум
+      const gate = new T.Mesh(Models.mergeColored([
+        { geo: Models.gCyl(0.12, 0.14, 1.4, 8, 0, 0.7, 0), color: 0x8f9a8a },
+        { geo: Models.gBox(5.2, 0.16, 0.16, 2.4, 1.3, 0), color: 0xd8443a },
+        { geo: Models.gBox(0.9, 0.18, 0.18, 0.6, 1.3, 0), color: 0xeeeee6 },
+        { geo: Models.gBox(0.9, 0.18, 0.18, 2.4, 1.3, 0), color: 0xeeeee6 },
+        { geo: Models.gBox(0.9, 0.18, 0.18, 4.2, 1.3, 0), color: 0xeeeee6 }
+      ]), this.mats.metal);
+      gate.castShadow = true;
+      const gx = spot.x + Math.cos(dir + 1.5) * 6, gz = spot.z + Math.sin(dir + 1.5) * 6;
+      gate.position.set(gx, this.terrain.height(gx, gz), gz);
+      gate.rotation.y = dir;
+      gate.rotation.z = -0.35;   // поднятая стрела
+      grp.add(gate);
+
+      // наблюдательная вышка
+      const towerX = spot.x + Math.cos(dir - 1.4) * 9, towerZ = spot.z + Math.sin(dir - 1.4) * 9;
+      const legs = [];
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+        legs.push({ geo: Models.gCyl(0.11, 0.13, 6.4, 6, sx * 1.1, 3.2, sz * 1.1, { x: sz * 0.05, z: -sx * 0.05 }), color: 0xa08a68 });
+      }
+      const tower = new T.Mesh(Models.mergeColored([
+        ...legs,
+        { geo: Models.gBox(3.0, 0.2, 3.0, 0, 6.4, 0), color: 0xb59a76 },
+        { geo: Models.gBox(3.2, 0.12, 3.2, 0, 6.5, 0), color: 0x9d8464 },
+        // перила
+        { geo: Models.gBox(3.2, 0.9, 0.12, 0, 6.9, 1.5), color: 0xa89070 },
+        { geo: Models.gBox(3.2, 0.9, 0.12, 0, 6.9, -1.5), color: 0xa89070 },
+        { geo: Models.gBox(0.12, 0.9, 3.2, 1.5, 6.9, 0), color: 0xa89070 },
+        // навес
+        { geo: Models.gBox(3.4, 0.14, 3.4, 0, 8.6, 0), color: 0x7f8a6a },
+        { geo: Models.gCyl(0.08, 0.08, 2.0, 5, 1.4, 7.6, 1.4), color: 0x8f9a7a },
+        { geo: Models.gCyl(0.08, 0.08, 2.0, 5, -1.4, 7.6, -1.4), color: 0x8f9a7a },
+        // лестница
+        ...Array.from({ length: 9 }, (_, i) => ({
+          geo: Models.gBox(1.2, 0.08, 0.2, 0, 0.6 + i * 0.65, 2.2 - i * 0.12),
+          color: 0xa08a68
+        }))
+      ]), this.mats.wood);
+      tower.castShadow = true; tower.receiveShadow = true;
+      tower.position.set(towerX, this.terrain.height(towerX, towerZ), towerZ);
+      tower.rotation.y = dir;
+      grp.add(tower);
+
+      // прожектор на вышке
+      const beam = new T.SpotLight(0xffe9c0, 120, 60, 0.5, 0.6, 1.5);
+      beam.position.set(towerX, this.terrain.height(towerX, towerZ) + 8, towerZ);
+      const beamTarget = new T.Object3D();
+      beamTarget.position.set(towerX + Math.cos(dir) * 40, 0, towerZ + Math.sin(dir) * 40);
+      grp.add(beam, beamTarget);
+      beam.target = beamTarget;
+      this.lights.push({ light: beam, base: 120, phase: rng.range(0, 6) });
+
+      // сетка-рабица с колючкой
+      const fenceParts = [];
+      for (let i = 0; i < 10; i++) {
+        const fx = -9 + i * 2;
+        fenceParts.push({ geo: Models.gCyl(0.06, 0.06, 2.4, 5, fx, 1.2, 0), color: 0x8d938f });
+        fenceParts.push({ geo: Models.gBox(2.0, 0.04, 0.04, fx + 1, 2.3, 0), color: 0x9aa09c });
+        fenceParts.push({ geo: Models.gBox(2.0, 0.04, 0.04, fx + 1, 1.2, 0), color: 0x9aa09c });
+        fenceParts.push({ geo: Models.gBox(2.0, 0.04, 0.04, fx + 1, 0.3, 0), color: 0x9aa09c });
+      }
+      const fence = new T.Mesh(Models.mergeColored(fenceParts), this.mats.metal);
+      const fx2 = spot.x + Math.cos(dir + 3) * 12, fz2 = spot.z + Math.sin(dir + 3) * 12;
+      fence.position.set(fx2, this.terrain.height(fx2, fz2), fz2);
+      fence.rotation.y = dir + Math.PI / 2;
+      fence.castShadow = true;
+      grp.add(fence);
+
+      this.add(grp);
+      this.outpost = { x: spot.x, z: spot.z };
+    }
+
+    /* --- линия электропередачи через карту --- */
+    buildPowerLine() {
+      const rng = this.rng;
+      const count = 7;
+      const dir = rng.range(0, U.TAU);
+      const step = (this.terrain.opts.size * 1.7) / count;
+      const poleParts = i => ([
+        { geo: Models.gCyl(0.22, 0.3, 11, 6, 0, 5.5, 0), color: 0xa89070 },
+        { geo: Models.gBox(4.6, 0.22, 0.22, 0, 9.6, 0), color: 0x9d8464 },
+        { geo: Models.gBox(3.4, 0.2, 0.2, 0, 8.6, 0), color: 0x9d8464 },
+        { geo: Models.gBox(0.2, 1.2, 0.2, -2.2, 10.1, 0), color: 0x8a7458 },
+        { geo: Models.gBox(0.2, 1.2, 0.2, 2.2, 10.1, 0), color: 0x8a7458 },
+        // изоляторы
+        { geo: Models.gCyl(0.12, 0.12, 0.26, 6, -2.2, 9.85, 0), color: 0xd8d2c0 },
+        { geo: Models.gCyl(0.12, 0.12, 0.26, 6, 2.2, 9.85, 0), color: 0xd8d2c0 },
+        { geo: Models.gCyl(0.12, 0.12, 0.26, 6, 0, 8.85, 0), color: 0xd8d2c0 }
+      ]);
+      const poles = [];
+      for (let i = 0; i < count; i++) {
+        const t = (i - (count - 1) / 2) * step;
+        const x = Math.cos(dir) * t, z = Math.sin(dir) * t;
+        const y = this.terrain.height(x, z);
+        const pole = new T.Mesh(Models.mergeColored(poleParts(i)), this.mats.wood);
+        pole.castShadow = true;
+        pole.position.set(x, y, z);
+        pole.rotation.y = dir + Math.PI / 2;
+        this.add(pole);
+        poles.push({ x, y, z });
+      }
+      // провода между опорами — провисающие линии
+      const wireMat = new T.LineBasicMaterial({ color: 0x1b1e20, transparent: true, opacity: 0.75 });
+      for (let i = 0; i < poles.length - 1; i++) {
+        const a = poles[i], b = poles[i + 1];
+        for (const off of [-2.2, 0, 2.2]) {
+          const pts = [];
+          const oxA = Math.cos(dir + Math.PI / 2) * off, ozA = Math.sin(dir + Math.PI / 2) * off;
+          for (let s = 0; s <= 8; s++) {
+            const k = s / 8;
+            const sag = Math.sin(k * Math.PI) * 1.4;
+            pts.push(new T.Vector3(
+              U.lerp(a.x, b.x, k) + oxA,
+              U.lerp(a.y + (off === 0 ? 8.85 : 9.85), b.y + (off === 0 ? 8.85 : 9.85), k) - sag,
+              U.lerp(a.z, b.z, k) + ozA));
+          }
+          const line = new T.Line(new T.BufferGeometry().setFromPoints(pts), wireMat);
+          this.add(line);
+        }
+      }
+    }
+
+    /* --- брошенная и сгоревшая техника --- */
+    buildWrecks() {
+      const rng = this.rng;
+      for (let i = 0; i < 3; i++) {
+        const spot = this.randomSpot(25, 90);
+        const truck = new T.Mesh(Models.mergeColored([
+          { geo: Models.gBox(2.4, 1.1, 5.4, 0, 1.1, 0), color: 0x4a4640 },
+          { geo: Models.gBox(2.2, 1.3, 1.8, 0, 1.9, 1.8), color: 0x413d38 },
+          { geo: Models.gBox(2.3, 1.6, 3.2, 0, 2.1, -1.2), color: 0x38352f },
+          { geo: Models.gCyl(0.6, 0.6, 0.4, 8, -1.2, 0.6, 1.6, { z: Math.PI / 2 }), color: 0x1c1c1a },
+          { geo: Models.gCyl(0.6, 0.6, 0.4, 8, 1.2, 0.6, 1.6, { z: Math.PI / 2 }), color: 0x1c1c1a },
+          { geo: Models.gCyl(0.6, 0.6, 0.4, 8, -1.2, 0.6, -1.8, { z: Math.PI / 2 }), color: 0x1c1c1a }
+        ]), this.mats.barrel);
+        truck.castShadow = true; truck.receiveShadow = true;
+        truck.position.set(spot.x, this.terrain.height(spot.x, spot.z), spot.z);
+        truck.rotation.set(rng.range(-0.1, 0.1), rng.range(0, U.TAU), rng.range(-0.15, 0.15));
+        this.add(truck);
+        this.wreckSmoke = this.wreckSmoke || [];
+        this.wreckSmoke.push({ x: spot.x, y: this.terrain.height(spot.x, spot.z) + 2, z: spot.z });
+      }
     }
 
     /* --- следы гусениц на земле --- */

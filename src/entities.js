@@ -91,6 +91,18 @@ const Entities = (() => {
     /* --- боевая логика союзника --- */
     updateAI(dt, world) {
       if (this.dead) return;
+      if (this.riding) {
+        // едем на броне: только целимся и стреляем
+        this.updatePose(dt);
+        const tgt = world.findEnemyNear(this, this.range);
+        if (tgt) {
+          this.yaw = U.angleDamp(this.yaw, this.angleTo(tgt), 5, dt);
+          this.mesh.rotation.y = this.yaw;
+          this.cd -= dt;
+          if (this.cd <= 0) { this.fireAt(tgt, world); this.cd = U.rand(0.25, 0.45); }
+        }
+        return;
+      }
       this.stun = Math.max(0, this.stun - dt);
       this.suppression = Math.max(0, this.suppression - dt * 0.5);
 
@@ -437,8 +449,42 @@ const Entities = (() => {
 
     update(dt, world) {
       this.time += dt;
+
+      /* брошенная объектом машина летит по баллистике */
+      if (this.thrown) {
+        this.thrown.vy -= 22 * dt;
+        this.x += this.thrown.vx * dt;
+        this.y += this.thrown.vy * dt;
+        this.z += this.thrown.vz * dt;
+        this.mesh.position.set(this.x, this.y, this.z);
+        this.mesh.rotation.x += this.thrown.spin * dt;
+        this.mesh.rotation.z += this.thrown.spin * 0.6 * dt;
+        const gy = this.groundY();
+        if (this.y <= gy + 1) {
+          this.y = gy + 1;
+          const pos = new T.Vector3(this.x, this.y, this.z);
+          this.ctx.fx.explosion(pos, 16);
+          this.ctx.audio.explosion(this, 1.6);
+          // всё живое рядом получает по полной
+          for (const s of world.soldiers) {
+            if (s.dead) continue;
+            const d = Math.hypot(s.x - this.x, s.z - this.z);
+            if (d < 14) s.damage(90 * (1 - d / 14), this, new T.Vector3(s.x, s.y + 1, s.z));
+          }
+          this.thrown = null;
+          if (!this.wrecked) this.die();
+        }
+        return;
+      }
+
+      /* машина в руках объекта не управляется */
+      if (this.grabbedBy) return;
+
       if (this.wrecked) { this.updateWreck(dt); return; }
       if (this.escortRef) this.escort = this.escortRef;
+
+      /* высадка десанта с брони */
+      if (this.riders && this.riders.length) this.updateRiders(dt);
 
       const target = world.boss && !world.boss.dead ? world.boss : world.findEnemyNear(this, 120);
       this.target = target;
@@ -567,6 +613,42 @@ const Entities = (() => {
       }
     }
 
+    /* --- пехота на броне --- */
+    mountRiders(list) {
+      this.riders = list;
+      const slots = [
+        { x: -1.5, y: 2.1, z: -1.6 }, { x: 1.5, y: 2.1, z: -1.6 },
+        { x: -1.5, y: 2.1, z: 0.2 }, { x: 1.5, y: 2.1, z: 0.2 },
+        { x: -1.2, y: 2.1, z: 1.8 }, { x: 1.2, y: 2.1, z: 1.8 },
+        { x: 0, y: 2.4, z: -2.4 }, { x: 0, y: 2.4, z: 2.2 }
+      ];
+      list.forEach((s, i) => {
+        s.riding = this;
+        s.rideSlot = slots[i % slots.length];
+        s.mesh.visible = true;
+      });
+      this.dismountT = -1;
+    }
+    dismount() {
+      if (!this.riders) return;
+      this.dismountT = 0;
+      this.dismountQueue = this.riders.slice();
+      this.riders = [];
+    }
+    updateRiders(dt) {
+      for (const s of this.riders) {
+        if (s.dead || !s.rideSlot) continue;
+        const c = Math.cos(this.yaw), sn = Math.sin(this.yaw);
+        s.x = this.x + s.rideSlot.x * c + s.rideSlot.z * sn;
+        s.z = this.z - s.rideSlot.x * sn + s.rideSlot.z * c;
+        s.mesh.position.set(s.x, this.y + s.rideSlot.y, s.z);
+        s.mesh.rotation.y = this.yaw + (s.rideSlot.x > 0 ? 0.6 : -0.6);
+        s.yaw = s.mesh.rotation.y;
+        s.walkAmt = 0;
+        s.onVehicle = true;
+      }
+    }
+
     fire(target, world) {
       const muzzleWorld = new T.Vector3();
       this.parts.muzzle.getWorldPosition(muzzleWorld);
@@ -637,6 +719,14 @@ const Entities = (() => {
         this.ctx.fx.smokeColumn(new T.Vector3(this.x + U.rand(-1, 1), this.y + 1.5, this.z + U.rand(-1, 1)), 1.1);
       }
       if (this.kind === 'heli') {
+        if (this.spinOut) {
+          this.x += this.spinOut.vx * dt;
+          this.z += this.spinOut.vz * dt;
+          this.spinOut.vx *= 0.985; this.spinOut.vz *= 0.985;
+          if (Math.random() < dt * 8) {
+            this.ctx.fx.smokeColumn(new T.Vector3(this.x, this.y, this.z), 1.4);
+          }
+        }
         this.fallVel = (this.fallVel || 0) + 16 * dt;
         this.y -= this.fallVel * dt;
         this.mesh.rotation.z += dt * 2.4;
@@ -677,6 +767,9 @@ const Entities = (() => {
       this.cdSummon = 12;
       this.cdSwipe = 0;
       this.cdSlam = 6;
+      this.cdHeli = 14;          // охота на вертолёты
+      this.cdTank = 10;          // расправа с бронёй
+      this.grabbed = null;       // схваченная машина
       this.stepSide = 1;
       this.deathT = 0;
       this.emerge = 0;             // 0..1 — «вырастает» в катсцене
@@ -732,6 +825,8 @@ const Entities = (() => {
         case 'summon': this.updateSummon(dt, world); break;
         case 'swipe': this.updateSwipe(dt, world); break;
         case 'slam': this.updateSlam(dt, world); break;
+        case 'swatHeli': this.updateSwatHeli(dt, world); break;
+        case 'grabTank': this.updateGrabTank(dt, world); break;
       }
 
       this.y = this.groundY();
@@ -768,6 +863,36 @@ const Entities = (() => {
         }
       }
       this.cdScream -= dt; this.cdSummon -= dt; this.cdSwipe -= dt; this.cdSlam -= dt;
+      this.cdHeli -= dt; this.cdTank -= dt;
+
+      /* --- добить вертолёт: он подлетает низко, объект дотягивается --- */
+      if (this.cdHeli <= 0) {
+        const heli = world.vehicles.find(v =>
+          v.kind === 'heli' && !v.wrecked && this.distTo(v) < 34 && v.y - this.y < 26);
+        if (heli) {
+          this.state = 'swatHeli'; this.stateT = 0; this.swatted = false;
+          this.heliTarget = heli;
+          this.cdHeli = 22;
+          if (this.ctx.game) this.ctx.game.onBossHunt('heli');
+          return;
+        }
+        this.cdHeli = 3;
+      }
+
+      /* --- схватить танк/БТР и разбить о землю --- */
+      if (this.cdTank <= 0 && !this.grabbed) {
+        const veh = world.vehicles.find(v =>
+          v.kind !== 'heli' && !v.wrecked && this.distTo(v) < 14);
+        if (veh) {
+          this.state = 'grabTank'; this.stateT = 0; this.grabPhase = 0;
+          this.tankTarget = veh;
+          this.cdTank = 26;
+          if (this.ctx.game) this.ctx.game.onBossHunt('tank');
+          return;
+        }
+        this.cdTank = 2.5;
+      }
+
       if (this.cdScream <= 0) {
         this.state = 'scream'; this.stateT = 0; this.screamed = false; this.waved = 0;
         this.cdScream = this.phase === 3 ? 9 : 13;
@@ -882,6 +1007,116 @@ const Entities = (() => {
         this.parts.armR.sh.rotation.x = 0;
         this.state = 'walk'; this.stateT = 0;
       }
+    }
+
+    /* ---------- сбить вертолёт ---------- */
+    updateSwatHeli(dt, world) {
+      const h = this.heliTarget;
+      if (!h || h.wrecked) { this.state = 'walk'; this.stateT = 0; return; }
+      // разворот на цель и замах обеими руками вверх
+      this.yaw = U.angleDamp(this.yaw, this.angleTo(h), 4, dt);
+      const k = U.clamp01(this.stateT / 1.1);
+      const lift = Math.sin(Math.min(1, k / 0.6) * Math.PI * 0.5);
+      const strike = k > 0.6 ? U.Ease.inCubic((k - 0.6) / 0.4) : 0;
+      this.parts.armR.sh.rotation.x = -lift * 3.0 + strike * 1.6;
+      this.parts.armR.sh.rotation.z = -0.5 - lift * 0.4;
+      this.parts.armL.sh.rotation.x = -lift * 2.2 + strike * 1.2;
+      this.parts.torso.rotation.x = -lift * 0.35 + strike * 0.5;
+
+      if (this.stateT > 0.95 && !this.swatted) {
+        this.swatted = true;
+        const dist = this.distTo(h);
+        if (dist < 42) {
+          // удар: вертолёт теряет управление
+          const p = new T.Vector3(h.x, h.y, h.z);
+          this.ctx.fx.explosion(p, 7);
+          this.ctx.audio.stomp(this, 1.4);
+          h.damage(h.maxHp * 2, this, p);
+          h.spinOut = { vx: Math.sin(this.yaw) * 26, vz: Math.cos(this.yaw) * 26 };
+          if (this.ctx.game) {
+            this.ctx.game.shake(1.5, this.distTo(this.ctx.game.player || this));
+            this.ctx.game.hud.toast('ОН СБИЛ ВЕРТОЛЁТ!', 2.6);
+          }
+        }
+      }
+      if (this.stateT > 1.8) {
+        this.parts.armR.sh.rotation.set(0, 0, 0);
+        this.parts.armL.sh.rotation.set(0, 0, 0);
+        this.parts.torso.rotation.x = 0;
+        this.state = 'walk'; this.stateT = 0;
+      }
+    }
+
+    /* ---------- поднять танк и швырнуть ---------- */
+    updateGrabTank(dt, world) {
+      const v = this.tankTarget;
+      if (!v || v.wrecked) { this.releaseGrab(); this.state = 'walk'; this.stateT = 0; return; }
+      const t = this.stateT;
+
+      if (this.grabPhase === 0) {
+        // наклон и захват
+        this.yaw = U.angleDamp(this.yaw, this.angleTo(v), 4, dt);
+        const k = U.clamp01(t / 1.0);
+        this.parts.torso.rotation.x = k * 0.75;
+        this.parts.armR.sh.rotation.x = k * 1.5;
+        this.parts.armL.sh.rotation.x = k * 1.5;
+        if (t > 1.0) {
+          this.grabPhase = 1; this.stateT = 0;
+          this.grabbed = v;
+          v.grabbedBy = this;
+          this.ctx.audio.impact(v, 'metal');
+          this.ctx.fx.dustBurst(new T.Vector3(v.x, v.y, v.z), 6, 8);
+          if (this.ctx.game) this.ctx.game.hud.toast('ОН ПОДНЯЛ ТАНК!', 2.6);
+        }
+      } else if (this.grabPhase === 1) {
+        // подъём над головой
+        const k = U.clamp01(t / 1.3);
+        this.parts.torso.rotation.x = 0.75 * (1 - k) - k * 0.25;
+        this.parts.armR.sh.rotation.x = U.lerp(1.5, -2.6, k);
+        this.parts.armL.sh.rotation.x = U.lerp(1.5, -2.6, k);
+        // машина едет за руками
+        const hx = this.x + Math.sin(this.yaw) * U.lerp(9, 4, k);
+        const hz = this.z + Math.cos(this.yaw) * U.lerp(9, 4, k);
+        const hy = this.y + U.lerp(1, 14, k);
+        v.x = hx; v.z = hz; v.y = hy;
+        v.mesh.position.set(hx, hy, hz);
+        v.mesh.rotation.set(U.lerp(0, 0.7, k), this.yaw + Math.PI / 2, U.lerp(0, 0.5, k));
+        if (this.ctx.game) this.ctx.game.shake(0.25 * dt * 10, this.distTo(this.ctx.game.player || this));
+        if (t > 1.3) { this.grabPhase = 2; this.stateT = 0; }
+      } else if (this.grabPhase === 2) {
+        // бросок
+        const k = U.clamp01(t / 0.45);
+        this.parts.armR.sh.rotation.x = U.lerp(-2.6, 1.2, U.Ease.inCubic(k));
+        this.parts.armL.sh.rotation.x = U.lerp(-2.6, 1.2, U.Ease.inCubic(k));
+        if (k >= 1) {
+          const dir = this.yaw;
+          v.thrown = {
+            vx: Math.sin(dir) * 34,
+            vy: 9,
+            vz: Math.cos(dir) * 34,
+            spin: U.rand(-4, 4)
+          };
+          v.grabbedBy = null;
+          this.grabbed = null;
+          this.ctx.audio.stomp(this, 1.6);
+          if (this.ctx.game) {
+            this.ctx.game.shake(1.2, this.distTo(this.ctx.game.player || this));
+            this.ctx.game.hud.toast('БЕРЕГИСЬ! ОН ЕГО БРОСИЛ!', 2.6);
+          }
+          this.grabPhase = 3; this.stateT = 0;
+        }
+      } else {
+        if (t > 0.9) {
+          this.parts.torso.rotation.x = 0;
+          this.parts.armR.sh.rotation.set(0, 0, 0);
+          this.parts.armL.sh.rotation.set(0, 0, 0);
+          this.state = 'walk'; this.stateT = 0;
+        }
+      }
+    }
+
+    releaseGrab() {
+      if (this.grabbed) { this.grabbed.grabbedBy = null; this.grabbed = null; }
     }
 
     setGlow(k) {

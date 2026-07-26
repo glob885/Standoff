@@ -156,7 +156,7 @@
   /* ============================================================
      ОБНОВЛЕНИЕ: сброс кэша и жёсткая перезагрузка
      ============================================================ */
-  const APP_VERSION = '3.1.0';
+  const APP_VERSION = '3.2.0';
   const verLine = document.getElementById('verLine');
   if (verLine) verLine.textContent = 'версия ' + APP_VERSION;
 

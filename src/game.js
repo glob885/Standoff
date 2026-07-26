@@ -888,15 +888,19 @@ const Game = (() => {
 
       // viewmodel
       this.viewmodel = Models.makeViewmodel();
-      this.viewmodel.scale.setScalar(0.92);
+      this.viewmodel.scale.setScalar(0.82);
       this.viewmodel.visible = false;
       this.camera.add(this.viewmodel);
       this.vmState = {
         recoil: 0, bob: 0, ads: 0, kickY: 0, kickX: 0, reloadT: 0
       };
-      // отдельный свет для оружия не нужен: мир достаточно освещён,
-      // а точечный источник вплотную давал белый пересвет
-      this.gunLight = null;
+      // мягкая подсветка оружия: направленный свет от камеры,
+      // чтобы модель читалась и в тени, но без белого пересвета
+      this.gunLight = new T.DirectionalLight(0xdfeaf2, 0.9);
+      this.gunLight.position.set(0.6, 0.8, 0.4);
+      this.camera.add(this.gunLight);
+      this.camera.add(this.gunLight.target);
+      this.gunLight.target.position.set(0, -0.2, -1);
 
       addEventListener('resize', () => this.onResize());
       this.onResize();
@@ -1180,6 +1184,18 @@ const Game = (() => {
       w.vehicles.push(new V(this.ctx, 'heli', -70, 40));
       w.vehicles.push(new V(this.ctx, 'heli', 70, 40));
       w.boss = new Entities.Boss(this.ctx, 0, -40);
+
+      /* половина отряда заезжает на броне и спешивается */
+      const carriers = w.vehicles.filter(v => v.kind === 'btr');
+      const riders = w.soldiers.filter(s => !s.isPlayer);
+      let ri = 0;
+      for (const c of carriers) {
+        const group = [];
+        for (let k = 0; k < 6 && ri < riders.length; k++, ri++) group.push(riders[ri]);
+        if (group.length) c.mountRiders(group);
+      }
+      this.dismountTimer = 6.5;    // через несколько секунд — высадка
+
       this.squad.setRoute([], 0, 66);
       this.squad.speed = 4.2;
       let bside = -1;
@@ -1321,6 +1337,17 @@ const Game = (() => {
         this.hud.show();
         if (!this.input.touch) this.input.requestLock();
       });
+    }
+
+    onBossHunt(kind) {
+      if (kind === 'heli') {
+        this.hud.toast('ОН ТЯНЕТСЯ К ВЕРТОЛЁТУ!', 2.4);
+        this.voice.say('scream', { profile: 'commander', who: 'КОМАНДИР', cooldown: 6 });
+      } else {
+        this.hud.toast('ОН ХВАТАЕТ ТАНК — ВСЕ НАЗАД!', 2.6);
+        this.voice.say('vehicleLost', { profile: 'commander', who: 'КОМАНДИР', cooldown: 6 });
+      }
+      if (this.touch) this.touch.haptic([0, 40, 30, 80]);
     }
 
     onBossScreamStart() {
@@ -1647,9 +1674,9 @@ const Game = (() => {
       const ads = this.vmState.ads;
       const rec = this.vmState.recoil;
       vm.position.set(
-        U.lerp(0.17, 0.0, ads) + Math.sin(this.vmState.bob) * 0.008 * bobAmt,
-        U.lerp(-0.16, -0.075, ads) + Math.abs(Math.cos(this.vmState.bob)) * 0.008 * bobAmt - rec * 0.012,
-        U.lerp(-0.34, -0.24, ads) + rec * 0.06);
+        U.lerp(0.2, 0.0, ads) + Math.sin(this.vmState.bob) * 0.008 * bobAmt,
+        U.lerp(-0.2, -0.088, ads) + Math.abs(Math.cos(this.vmState.bob)) * 0.008 * bobAmt - rec * 0.012,
+        U.lerp(-0.3, -0.22, ads) + rec * 0.06);
       vm.rotation.set(rec * 0.22, U.lerp(0.04, 0, ads), U.lerp(0.02, 0, ads));
       const flashMat = vm.userData.flash.material;
       if (flashMat.opacity > 0) flashMat.opacity = Math.max(0, flashMat.opacity - dt * 22);
@@ -1761,6 +1788,19 @@ const Game = (() => {
           this.updateFormation(dt);
           this.world.update(dt);
           if (this.level === 1) this.updateSearch(dt);
+          if (this.dismountTimer > 0) {
+            this.dismountTimer -= dt;
+            if (this.dismountTimer <= 0) {
+              for (const v of this.world.vehicles) {
+                if (v.riders && v.riders.length) {
+                  for (const s of v.riders) { s.riding = null; s.onVehicle = false; }
+                  v.riders = [];
+                }
+              }
+              this.hud.toast('ДЕСАНТ — К БОЮ!', 2.4);
+              this.voice.say('advance', { profile: 'commander', who: 'КОМАНДИР', cooldown: 0, priority: 2 });
+            }
+          }
           if (this.world.aliveSoldiers() === 0 && !this.ended) { this.ended = true; this.finish(false); }
           this.hud.update(dt, this);
           // тень следует за игроком

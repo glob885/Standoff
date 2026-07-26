@@ -646,55 +646,133 @@ const Models = (() => {
   function makeViewmodel() {
     const g = new T.Group();
 
-    const gunParts = [
-      { geo: gBox(0.09, 0.12, 0.62, 0, 0, -0.05), color: C.gunA },
-      { geo: gBox(0.085, 0.1, 0.3, 0, 0.015, -0.42), color: C.gunB },
-      { geo: gCyl(0.022, 0.022, 0.52, 8, 0, 0.02, -0.62, { x: Math.PI / 2 }), color: C.gunB },
-      { geo: gCyl(0.035, 0.035, 0.12, 8, 0, 0.02, -0.92, { x: Math.PI / 2 }), color: C.gunB },
-      { geo: gBox(0.08, 0.09, 0.34, 0, -0.01, -0.42), color: C.gunA },
-      { geo: gBox(0.05, 0.02, 0.5, 0, 0.075, -0.3), color: C.gunB },
-      { geo: gBox(0.07, 0.24, 0.12, 0, -0.17, -0.02, { x: 0.18 }), color: C.gunA },
-      { geo: gBox(0.07, 0.2, 0.1, 0, -0.14, 0.12, { x: -0.3 }), color: C.gunA },
-      { geo: gBox(0.08, 0.14, 0.3, 0, -0.02, 0.32), color: C.gunA },
-      { geo: gBox(0.07, 0.09, 0.1, 0, -0.06, 0.48), color: C.gunA },
-      { geo: gBox(0.07, 0.06, 0.12, 0, 0.11, -0.12), color: C.gunB }
+    /* ---- корпус оружия: ствольная коробка, ствол, ДТК, цевьё ---- */
+    const body = [
+      // ствольная коробка
+      { geo: gBox(0.085, 0.115, 0.60, 0, 0, -0.04), color: C.gunA },
+      { geo: gBox(0.092, 0.05, 0.62, 0, 0.055, -0.04), color: C.gunB },     // верхняя планка основания
+      // планка пикатинни: зубцы
+      ...Array.from({ length: 9 }, (_, i) => ({
+        geo: gBox(0.05, 0.022, 0.028, 0, 0.088, -0.32 + i * 0.075),
+        color: 0x35393c
+      })),
+      { geo: gBox(0.042, 0.014, 0.66, 0, 0.078, -0.04), color: 0x2c3033 },
+      // затворная рама и рукоятка взведения
+      { geo: gBox(0.088, 0.06, 0.26, 0, 0.03, -0.28), color: 0x53585c },
+      { geo: gBox(0.11, 0.022, 0.05, 0.055, 0.035, -0.2), color: 0x6a7075 },
+      // окно выброса гильз
+      { geo: gBox(0.012, 0.045, 0.12, 0.047, 0.02, -0.12), color: 0x1a1d20 },
+      // ствол + газоотвод + ДТК
+      { geo: gCyl(0.021, 0.021, 0.58, 10, 0, 0.012, -0.62, { x: Math.PI / 2 }), color: 0x3a3f42 },
+      { geo: gCyl(0.016, 0.016, 0.34, 8, 0, 0.062, -0.56, { x: Math.PI / 2 }), color: 0x44494c },
+      { geo: gCyl(0.034, 0.03, 0.13, 10, 0, 0.012, -0.94, { x: Math.PI / 2 }), color: 0x2e3235 },
+      { geo: gTorus(0.032, 0.008, 10, 0, 0.012, -0.9, { x: Math.PI / 2 }), color: 0x4a5054 },
+      // мушка
+      { geo: gBox(0.02, 0.05, 0.03, 0, 0.075, -0.8), color: 0x2a2e31 },
+      // цевьё с вентиляционными отверстиями
+      { geo: gBox(0.078, 0.085, 0.36, 0, 0.005, -0.5), color: C.gunA },
+      ...Array.from({ length: 5 }, (_, i) => ({
+        geo: gCyl(0.012, 0.012, 0.09, 6, 0.04, 0.01, -0.62 + i * 0.06, { z: Math.PI / 2 }),
+        color: 0x1e2225
+      })),
+      ...Array.from({ length: 5 }, (_, i) => ({
+        geo: gCyl(0.012, 0.012, 0.09, 6, -0.04, 0.01, -0.62 + i * 0.06, { z: Math.PI / 2 }),
+        color: 0x1e2225
+      })),
+      // передняя рукоять
+      { geo: gBox(0.05, 0.16, 0.06, 0, -0.11, -0.52, { x: 0.12 }), color: 0x24282b },
+      { geo: gBox(0.06, 0.03, 0.08, 0, -0.19, -0.52), color: 0x1a1d20 },
+      // магазин (изогнутый: два сегмента)
+      { geo: gBox(0.062, 0.20, 0.115, 0, -0.14, 0.0, { x: 0.16 }), color: 0x2f3437 },
+      { geo: gBox(0.058, 0.13, 0.1, 0, -0.29, 0.045, { x: 0.34 }), color: 0x2a2f32 },
+      { geo: gBox(0.066, 0.02, 0.12, 0, -0.05, -0.01, { x: 0.16 }), color: 0x1c2023 },
+      // спусковая скоба и крючок
+      { geo: gTorus(0.045, 0.008, 8, 0, -0.09, 0.09, { x: Math.PI / 2 }), color: 0x2a2e31 },
+      { geo: gBox(0.014, 0.05, 0.016, 0, -0.075, 0.085, { x: -0.2 }), color: 0x6a7075 },
+      // пистолетная рукоять
+      { geo: gBox(0.062, 0.20, 0.09, 0, -0.14, 0.16, { x: -0.32 }), color: 0x26292c },
+      { geo: gBox(0.066, 0.03, 0.1, 0, -0.24, 0.19), color: 0x1b1e21 },
+      // переводчик огня
+      { geo: gBox(0.02, 0.03, 0.05, 0.05, -0.02, 0.13), color: 0x5a6064 },
+      // приклад: труба + затыльник + щека
+      { geo: gCyl(0.026, 0.026, 0.22, 8, 0, -0.005, 0.26, { x: Math.PI / 2 }), color: 0x3c4144 },
+      { geo: gBox(0.08, 0.13, 0.2, 0, -0.02, 0.34), color: C.gunA },
+      { geo: gBox(0.085, 0.05, 0.16, 0, 0.06, 0.33), color: 0x2c3033 },
+      { geo: gBox(0.09, 0.14, 0.04, 0, -0.03, 0.45), color: 0x1e2225 },
+      // антабка и ремень
+      { geo: gTorus(0.018, 0.006, 6, 0.045, -0.02, 0.24, { y: Math.PI / 2 }), color: 0x555b5f },
+      { geo: gBox(0.02, 0.012, 0.5, 0.06, -0.16, 0.05, { x: -0.12 }), color: 0x3a3226 }
     ];
-    const gun = new T.Mesh(mergeColored(gunParts), M.gun);
+    const gun = new T.Mesh(mergeColored(body), M.gun);
     g.add(gun);
 
-    // руки
-    const handParts = [
-      { geo: gBox(0.1, 0.12, 0.14, 0.02, -0.11, 0.14, { x: -0.3 }), color: 0x2f2a24 },
-      { geo: gBox(0.12, 0.12, 0.34, 0.05, -0.16, 0.36, { x: -0.25 }), color: 0x8a9470 },
-      { geo: gBox(0.1, 0.11, 0.16, -0.01, -0.09, -0.4), color: 0x2f2a24 },
-      { geo: gBox(0.12, 0.12, 0.3, -0.09, -0.16, -0.28, { y: 0.35, x: -0.1 }), color: 0x8a9470 }
-    ];
+    /* ---- коллиматор: корпус, тубус, крепление ---- */
+    const sight = new T.Group();
+    sight.position.set(0, 0.135, -0.1);
+    g.add(sight);
+    sight.add(new T.Mesh(mergeColored([
+      { geo: gBox(0.055, 0.05, 0.1, 0, -0.03, 0), color: 0x2a2e31 },          // кронштейн
+      { geo: gCyl(0.032, 0.032, 0.13, 12, 0, 0.02, 0, { x: Math.PI / 2 }), color: 0x33383b },
+      { geo: gTorus(0.033, 0.006, 12, 0, 0.02, -0.065, { x: Math.PI / 2 }), color: 0x4a5054 },
+      { geo: gTorus(0.033, 0.006, 12, 0, 0.02, 0.065, { x: Math.PI / 2 }), color: 0x4a5054 },
+      { geo: gBox(0.02, 0.02, 0.03, 0.035, 0.02, 0), color: 0x53585c }        // барабанчик поправок
+    ]), M.gun));
+    const lens = new T.Mesh(new T.CircleGeometry(0.028, 14),
+      new T.MeshBasicMaterial({ color: 0x1e4a52, transparent: true, opacity: 0.45 }));
+    lens.position.set(0, 0.02, 0.062);
+    sight.add(lens);
+    const dot = new T.Mesh(new T.CircleGeometry(0.0045, 8),
+      new T.MeshBasicMaterial({ color: 0xff2d1a }));
+    dot.position.set(0, 0.02, 0.066);
+    sight.add(dot);
+
+    /* ---- фонарь на цевье ---- */
+    const torch = new T.Mesh(mergeColored([
+      { geo: gCyl(0.022, 0.022, 0.12, 8, -0.055, -0.01, -0.62, { x: Math.PI / 2 }), color: 0x2e3235 },
+      { geo: gCyl(0.024, 0.02, 0.02, 8, -0.055, -0.01, -0.69, { x: Math.PI / 2 }), color: 0xdad2b8 }
+    ]), M.gun);
+    g.add(torch);
+
+    /* ---- руки в перчатках: пальцы, а не кубы ---- */
+    const handParts = [];
+    // правая кисть на рукояти
+    handParts.push({ geo: gBox(0.075, 0.1, 0.11, 0.035, -0.135, 0.15, { x: -0.3 }), color: 0x2f2a24 });
+    for (let i = 0; i < 4; i++) {
+      handParts.push({
+        geo: gCyl(0.011, 0.011, 0.075, 5, 0.012, -0.1 - i * 0.022, 0.115, { x: 1.25 }),
+        color: 0x35302a
+      });
+    }
+    handParts.push({ geo: gBox(0.028, 0.05, 0.035, 0.05, -0.1, 0.1, { z: 0.4 }), color: 0x35302a });
+    // предплечье правой руки
+    handParts.push({ geo: gCyl(0.05, 0.058, 0.34, 8, 0.06, -0.2, 0.34, { x: -0.3 }), color: 0x8a9470 });
+    handParts.push({ geo: gBox(0.115, 0.09, 0.1, 0.06, -0.16, 0.2), color: 0x2f2a24 });
+    // левая кисть на передней рукояти
+    handParts.push({ geo: gBox(0.075, 0.1, 0.1, -0.005, -0.135, -0.5), color: 0x2f2a24 });
+    for (let i = 0; i < 4; i++) {
+      handParts.push({
+        geo: gCyl(0.011, 0.011, 0.07, 5, -0.02, -0.105, -0.53 + i * 0.024, { z: 1.35 }),
+        color: 0x35302a
+      });
+    }
+    handParts.push({ geo: gCyl(0.05, 0.058, 0.32, 8, -0.1, -0.2, -0.36, { x: -0.15, y: 0.4 }), color: 0x8a9470 });
+    handParts.push({ geo: gBox(0.11, 0.09, 0.1, -0.06, -0.17, -0.44), color: 0x2f2a24 });
     const hands = new T.Mesh(mergeColored(handParts), M.soldier);
     g.add(hands);
 
-    // коллиматор: линза и точка
-    const lens = new T.Mesh(new T.CircleGeometry(0.028, 12),
-      new T.MeshBasicMaterial({ color: 0x2a4a4a, transparent: true, opacity: 0.5 }));
-    lens.position.set(0, 0.13, -0.18);
-    g.add(lens);
-    const dot = new T.Mesh(new T.CircleGeometry(0.005, 8), new T.MeshBasicMaterial({ color: 0xff3020 }));
-    dot.position.set(0, 0.13, -0.176);
-    g.add(dot);
-
     const flash = new T.Sprite(new T.SpriteMaterial({
       map: TEX.get('flash'), color: 0xffd9a0, transparent: true,
-      blending: T.AdditiveBlending, depthWrite: false, opacity: 0,
-      sizeAttenuation: true
+      blending: T.AdditiveBlending, depthWrite: false, opacity: 0
     }));
-    flash.scale.set(0.22, 0.22, 1);
-    flash.position.set(0, 0.02, -1.02);
+    flash.scale.set(0.24, 0.24, 1);
+    flash.position.set(0, 0.012, -1.0);
     g.add(flash);
 
-    const muzzle = pivot(0, 0.02, -1.0);
+    const muzzle = pivot(0, 0.012, -0.98);
     g.add(muzzle);
 
     g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
-    g.userData = { flash, muzzle, gun, hands, dot };
+    g.userData = { flash, muzzle, gun, hands, dot, sight, torch };
     return g;
   }
 
