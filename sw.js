@@ -4,7 +4,7 @@
    ============================================================ */
 'use strict';
 
-const CACHE = 'siren-v2.1';
+const CACHE = 'siren-v3.0.1';
 
 const ASSETS = [
   './',
@@ -21,6 +21,9 @@ const ASSETS = [
   './src/models.js',
   './src/fx.js',
   './src/audio.js',
+  './src/voice.js',
+  './src/touch.js',
+  './src/detail.js',
   './src/entities.js',
   './src/game.js',
   './icons/icon-192.png',
@@ -82,5 +85,9 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('message', e => {
-  if (e.data === 'skipWaiting') self.skipWaiting();
+  const msg = e.data;
+  if (msg === 'skipWaiting') { self.skipWaiting(); return; }
+  if (msg === 'clearCache') {
+    e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))));
+  }
 });

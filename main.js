@@ -153,11 +153,94 @@
     };
   }
 
-  /* сервис-воркер — офлайн-режим (нужен, чтобы иконка работала без сети) */
+  /* ============================================================
+     ОБНОВЛЕНИЕ: сброс кэша и жёсткая перезагрузка
+     ============================================================ */
+  const APP_VERSION = '3.0.1';
+  const verLine = document.getElementById('verLine');
+  if (verLine) verLine.textContent = 'версия ' + APP_VERSION;
+
+  let swRegistration = null;
+
+  /* полный сброс: чистим Cache Storage, снимаем сервис-воркер,
+     перезагружаем страницу с новым query, чтобы браузер не взял из HTTP-кэша */
+  async function forceUpdate() {
+    const overlay = document.createElement('div');
+    overlay.className = 'updating';
+    overlay.textContent = 'ОБНОВЛЕНИЕ… СБРАСЫВАЮ КЭШ';
+    document.body.appendChild(overlay);
+    try {
+      if (window.speechSynthesis) speechSynthesis.cancel();
+      // 1) все кэши сервис-воркера
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+      // 2) снимаем регистрации сервис-воркеров
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+      // 3) локальные настройки не трогаем — они полезные; чистим только флаги версии
+      try { localStorage.removeItem('siren_swVersion'); } catch (e) { /* ок */ }
+    } catch (e) {
+      console.warn('update:', e);
+    }
+    // 4) перезагрузка с обходом HTTP-кэша
+    const url = new URL(location.href);
+    url.searchParams.set('v', Date.now().toString(36));
+    location.replace(url.toString());
+  }
+
+  for (const id of ['updateBtn', 'updateBtn2', 'updateNowBtn']) {
+    const el = document.getElementById(id);
+    if (el) el.onclick = forceUpdate;
+  }
+  const laterBtn = document.getElementById('updateLaterBtn');
+  if (laterBtn) laterBtn.onclick = () => {
+    const b = document.getElementById('updateBanner');
+    if (b) b.classList.add('hidden');
+  };
+
+  function showUpdateBanner() {
+    const b = document.getElementById('updateBanner');
+    if (b) b.classList.remove('hidden');
+  }
+
+  /* сервис-воркер — офлайн-режим + автопроверка обновлений */
   function registerSW() {
     if (!('serviceWorker' in navigator)) return;
     if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-    navigator.serviceWorker.register('sw.js').catch(() => { /* не критично */ });
+    navigator.serviceWorker.register('sw.js').then(reg => {
+      swRegistration = reg;
+
+      // если уже стоит новый воркер и ждёт — предлагаем обновиться
+      if (reg.waiting && navigator.serviceWorker.controller) showUpdateBanner();
+
+      reg.addEventListener('updatefound', () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener('statechange', () => {
+          // «installed» + уже есть контроллер = приехала новая версия
+          if (sw.state === 'installed' && navigator.serviceWorker.controller) {
+            showUpdateBanner();
+          }
+        });
+      });
+
+      // проверяем обновления при запуске и при возврате во вкладку
+      const check = () => { try { reg.update(); } catch (e) { /* ок */ } };
+      setTimeout(check, 4000);
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+      setInterval(check, 5 * 60 * 1000);
+    }).catch(() => { /* не критично */ });
+
+    // когда воркер сменился — страница уже работает на новой версии
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+    });
   }
 
   applyStandalone();

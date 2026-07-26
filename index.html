@@ -106,7 +106,9 @@
         <button id="settingsBtn" class="ghost small">НАСТРОЙКИ</button>
         <button id="fsBtn" class="ghost small">ВО ВЕСЬ ЭКРАН</button>
         <button id="installBtn" class="ghost small hidden">УСТАНОВИТЬ</button>
+        <button id="updateBtn" class="ghost small">ОБНОВИТЬ ИГРУ</button>
       </div>
+      <div id="verLine" class="ver">версия —</div>
       <div id="a2hsTip" class="a2hs hidden">
         <b>Хочешь как приложение?</b>
         Нажми <span class="ios-share">⬆︎</span> «Поделиться» внизу Safari →
@@ -192,6 +194,7 @@
       <button id="resumeBtn" class="big">ПРОДОЛЖИТЬ</button>
       <button id="restartBtn" class="ghost">ЗАНОВО</button>
       <button id="quitBtn" class="ghost">В МЕНЮ</button>
+      <button id="updateBtn2" class="ghost">ОБНОВИТЬ (СБРОСИТЬ КЭШ)</button>
     </div>
   </div>
 
@@ -214,6 +217,12 @@
       <div class="loadbar"><div id="loadBar"></div></div>
       <div id="loadStatus" class="load-status">Инициализация…</div>
     </div>
+  </div>
+
+  <div id="updateBanner" class="update-banner hidden">
+    <span>Доступна новая версия игры</span>
+    <button id="updateNowBtn">ОБНОВИТЬ</button>
+    <button id="updateLaterBtn" class="later">ПОЗЖЕ</button>
   </div>
 
   <div id="layoutHint" class="layout-hint hidden">
