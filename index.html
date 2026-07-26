@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07090b">
+<meta name="description" content="ОПЕРАЦИЯ «СИРЕНА» — 3D-шутер от первого лица: отряд из 50 бойцов, танки, БТР и вертолёты против SCP-6789.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ОПЕРАЦИЯ «СИРЕНА» — 3D FPS</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"><i class="ch-t"></i><i class="ch-b"></i><i class="ch-l"></i><i class="ch-r"></i><i class="ch-d"></i><b id="hitmark">✕</b></div>
+
+    <div class="hud-top">
+      <div class="panel squad">
+        <div class="label">ОТРЯД ε-11</div>
+        <div class="val"><span id="squadAlive">50</span><span class="sub">/50</span></div>
+      </div>
+      <div class="panel objective">
+        <div class="label">ЗАДАЧА</div>
+        <div id="objText">—</div>
+      </div>
+      <div class="top-right">
+        <div id="fpsCounter" class="fps hidden">60 FPS</div>
+        <button id="pauseBtn" class="icon-btn" aria-label="Пауза">❚❚</button>
+      </div>
+    </div>
+
+    <div id="bossBar" class="boss-bar hidden">
+      <div class="boss-name">SCP-6789 · «СИРЕНОГОЛОВЫЙ»</div>
+      <div class="bar"><div id="bossFill"></div></div>
+      <div id="bossPhase" class="phase">ФАЗА I</div>
+    </div>
+
+    <div id="compass"><div id="compassArrow">▲</div><span id="compassDist"></span></div>
+    <div id="toast" class="toast"></div>
+    <div id="subtitle" class="subtitle"></div>
+    <div id="reloadIndicator" class="reload-ind">ПЕРЕЗАРЯДКА</div>
+
+    <div class="hud-bottom">
+      <div class="vitals">
+        <div class="hp-wrap">
+          <div class="label">СОСТОЯНИЕ</div>
+          <div class="hp"><div id="hpFill"></div></div>
+        </div>
+        <div class="ammo">
+          <span id="ammoNow">30</span><span class="slash">/</span><span id="ammoMax">30</span>
+          <span class="reserve">· <span id="ammoReserve">240</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= Тач-управление ================= -->
+    <div id="touch" class="hidden">
+      <div id="lookArea"></div>
+      <div id="stickL" class="stick"><div class="knob"></div></div>
+      <button id="fireBtn" class="act-btn fire">ОГОНЬ</button>
+      <button id="adsBtn" class="act-btn small">◎</button>
+      <button id="reloadBtn" class="act-btn small">⟳</button>
+      <button id="sprintBtn" class="act-btn small">≫</button>
+    </div>
+  </div>
+
+  <!-- ================= Катсцены ================= -->
+  <div id="cutscene" class="cut hidden">
+    <div class="bar top"></div>
+    <div class="bar bottom"></div>
+    <div id="cutText" class="cut-text"></div>
+    <button id="skipCutBtn" class="skip-btn">ПРОПУСТИТЬ ▶</button>
+  </div>
+
+  <!-- ================= Меню ================= -->
+  <div id="menu" class="overlay">
+    <div class="menu-inner">
+      <div class="tag">SCP FOUNDATION · MOBILE TASK FORCE ε-11 «NINE-TAILED FOX»</div>
+      <h1>ОПЕРАЦИЯ<br><span>«СИРЕНА»</span></h1>
+      <p class="lead">3D-шутер от первого лица.<br>50 бойцов, танки, БТР и вертолёты — против SCP-6789.</p>
+      <button id="playBtn" class="big">НАЧАТЬ ОПЕРАЦИЮ</button>
+      <button id="skipBtn" class="ghost">СРАЗУ К БОЮ</button>
+      <div class="menu-row">
+        <button id="settingsBtn" class="ghost small">НАСТРОЙКИ</button>
+        <button id="fsBtn" class="ghost small">ВО ВЕСЬ ЭКРАН</button>
+      </div>
+      <div class="controls">
+        <b>ПК:</b> клик — захват мыши · WASD — движение · мышь — обзор · ЛКМ — огонь · ПКМ — прицел · R — перезарядка · Shift — бег · Esc — пауза<br>
+        <b>Телефон:</b> левый стик — движение · свайп справа — обзор · ОГОНЬ · ◎ прицел · ⟳ перезарядка · ≫ бег
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= Настройки ================= -->
+  <div id="settings" class="overlay hidden">
+    <div class="menu-inner">
+      <h2>НАСТРОЙКИ</h2>
+      <div class="setting">
+        <label>Качество графики</label>
+        <select id="qualitySel">
+          <option value="low">Низкое (слабый телефон)</option>
+          <option value="medium">Среднее</option>
+          <option value="high">Высокое</option>
+        </select>
+      </div>
+      <div class="setting">
+        <label>Чувствительность обзора</label>
+        <input id="sensRange" type="range" min="0.3" max="2.5" step="0.05">
+      </div>
+      <div class="setting">
+        <label>Громкость</label>
+        <input id="volRange" type="range" min="0" max="1" step="0.05">
+      </div>
+      <div class="setting row">
+        <label><input id="bloomChk" type="checkbox"> Пост-обработка (bloom)</label>
+      </div>
+      <div class="setting row">
+        <label><input id="fpsChk" type="checkbox"> Показывать FPS</label>
+      </div>
+      <button id="settingsClose" class="big">ЗАКРЫТЬ</button>
+    </div>
+  </div>
+
+  <!-- ================= Пауза ================= -->
+  <div id="pause" class="overlay hidden">
+    <div class="menu-inner">
+      <h2>ПАУЗА</h2>
+      <button id="resumeBtn" class="big">ПРОДОЛЖИТЬ</button>
+      <button id="restartBtn" class="ghost">ЗАНОВО</button>
+      <button id="quitBtn" class="ghost">В МЕНЮ</button>
+    </div>
+  </div>
+
+  <!-- ================= Финал ================= -->
+  <div id="endScreen" class="overlay hidden">
+    <div class="menu-inner">
+      <h2 id="endTitle">ОТРЯД УНИЧТОЖЕН</h2>
+      <p id="endText" class="lead"></p>
+      <div id="endStats" class="stats"></div>
+      <button id="againBtn" class="big">ЕЩЁ РАЗ</button>
+      <button id="menuBtn" class="ghost">В МЕНЮ</button>
+    </div>
+  </div>
+
+  <!-- ================= Загрузка ================= -->
+  <div id="loading" class="overlay">
+    <div class="menu-inner">
+      <div class="tag">SCP FOUNDATION · SECURE. CONTAIN. PROTECT.</div>
+      <h2>ЗАГРУЗКА</h2>
+      <div class="loadbar"><div id="loadBar"></div></div>
+      <div id="loadStatus" class="load-status">Инициализация…</div>
+    </div>
+  </div>
+
+  <div id="rotateHint" class="hidden">📱 ПОВЕРНИ ТЕЛЕФОН ГОРИЗОНТАЛЬНО</div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="src/util.js"></script>
+<script src="src/textures.js"></script>
+<script src="src/sky.js"></script>
+<script src="src/postfx.js"></script>
+<script src="src/world.js"></script>
+<script src="src/models.js"></script>
+<script src="src/fx.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/entities.js"></script>
+<script src="src/game.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
