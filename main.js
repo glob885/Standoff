@@ -70,6 +70,102 @@
 
   next();
 
+  /* ============================================================
+     PWA: установка на экран «Домой», standalone-режим, офлайн
+     ============================================================ */
+  const isStandalone = () =>
+    window.navigator.standalone === true ||                      // iOS Safari
+    matchMedia('(display-mode: standalone)').matches ||
+    matchMedia('(display-mode: fullscreen)').matches ||
+    matchMedia('(display-mode: minimal-ui)').matches;
+
+  const isIOS = () =>
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  const isSafari = () =>
+    /Safari/.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|Chrome/.test(navigator.userAgent);
+
+  function applyStandalone() {
+    const on = isStandalone();
+    document.body.classList.toggle('standalone', on);
+    if (on) {
+      // запущено с экрана «Домой»: адресной строки нет — это и есть полный экран
+      document.documentElement.style.setProperty('--app-mode', 'standalone');
+      // прячем подсказку об установке
+      const tip = document.getElementById('a2hsTip');
+      if (tip) tip.classList.add('hidden');
+      // держим экран включённым, пока играем
+      requestWakeLock();
+    }
+    return on;
+  }
+
+  /* не давать экрану гаснуть во время игры */
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    } catch (e) { /* не критично */ }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && !wakeLock && isStandalone()) requestWakeLock();
+  });
+
+  /* Android/Chrome: системное приглашение установить */
+  let deferredPrompt = null;
+  const installBtn = document.getElementById('installBtn');
+  addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.classList.remove('hidden');
+  });
+  if (installBtn) {
+    installBtn.onclick = async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.classList.add('hidden');
+    };
+  }
+  addEventListener('appinstalled', () => {
+    if (installBtn) installBtn.classList.add('hidden');
+    const tip = document.getElementById('a2hsTip');
+    if (tip) tip.classList.add('hidden');
+  });
+
+  /* iOS: своей кнопки установки нет — показываем инструкцию */
+  function maybeShowIosTip() {
+    const tip = document.getElementById('a2hsTip');
+    if (!tip) return;
+    const dismissed = U.Store.read('a2hsDismissed', false);
+    if (isIOS() && isSafari() && !isStandalone() && !dismissed) {
+      tip.classList.remove('hidden');
+    }
+    const close = document.getElementById('a2hsClose');
+    if (close) close.onclick = () => {
+      tip.classList.add('hidden');
+      U.Store.write('a2hsDismissed', true);
+    };
+  }
+
+  /* сервис-воркер — офлайн-режим (нужен, чтобы иконка работала без сети) */
+  function registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
+    navigator.serviceWorker.register('sw.js').catch(() => { /* не критично */ });
+  }
+
+  applyStandalone();
+  maybeShowIosTip();
+  registerSW();
+  addEventListener('resize', applyStandalone);
+  matchMedia('(display-mode: standalone)').addEventListener?.('change', applyStandalone);
+
   /* --- полноэкранный режим по кнопке --- */
   const fsBtn = document.getElementById('fsBtn');
   if (fsBtn) {

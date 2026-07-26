@@ -1,0 +1,37 @@
+{
+  "name": "ОПЕРАЦИЯ «СИРЕНА» — SCP-6789",
+  "short_name": "СИРЕНА",
+  "description": "3D-шутер от первого лица: отряд MTF ε-11 из 50 бойцов, танки, БТР и вертолёты против SCP-6789.",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "siren-scp6789",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "landscape",
+  "background_color": "#07090b",
+  "theme_color": "#07090b",
+  "categories": ["games", "entertainment"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

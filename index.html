@@ -6,8 +6,25 @@
 <meta name="theme-color" content="#07090b">
 <meta name="description" content="ОПЕРАЦИЯ «СИРЕНА» — 3D-шутер от первого лица: отряд из 50 бойцов, танки, БТР и вертолёты против SCP-6789.">
 <meta name="mobile-web-app-capable" content="yes">
+
+<!-- ===== PWA: запуск с экрана «Домой» в полный экран ===== -->
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="СИРЕНА">
+<meta name="application-name" content="СИРЕНА">
+<meta name="msapplication-TileColor" content="#07090b">
+<meta name="msapplication-TileImage" content="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
+<link rel="apple-touch-startup-image" href="icons/splash-1170x2532.png"
+      media="(device-width:390px) and (device-height:844px)">
+<link rel="apple-touch-startup-image" href="icons/splash-1284x2778.png"
+      media="(device-width:428px) and (device-height:926px)">
+<link rel="apple-touch-startup-image" href="icons/splash-828x1792.png"
+      media="(device-width:414px) and (device-height:896px)">
+<link rel="apple-touch-startup-image" href="icons/splash-1170x2532.png">
 <title>ОПЕРАЦИЯ «СИРЕНА» — 3D FPS</title>
 <link rel="stylesheet" href="style.css">
 </head>
@@ -88,6 +105,14 @@
       <div class="menu-row">
         <button id="settingsBtn" class="ghost small">НАСТРОЙКИ</button>
         <button id="fsBtn" class="ghost small">ВО ВЕСЬ ЭКРАН</button>
+        <button id="installBtn" class="ghost small hidden">УСТАНОВИТЬ</button>
+      </div>
+      <div id="a2hsTip" class="a2hs hidden">
+        <b>Хочешь как приложение?</b>
+        Нажми <span class="ios-share">⬆︎</span> «Поделиться» внизу Safari →
+        <b>«На экран “Домой”»</b>. Игра запустится на весь экран, без адресной строки
+        и будет работать даже без интернета.
+        <button id="a2hsClose" class="a2hs-close">ПОНЯЛ</button>
       </div>
       <div class="controls">
         <b>ПК:</b> клик — захват мыши · WASD — движение · мышь — обзор · ЛКМ — огонь · ПКМ — прицел · R — перезарядка · Shift — бег · Esc — пауза<br>

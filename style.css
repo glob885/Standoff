@@ -171,3 +171,16 @@ h2{font-size:clamp(22px,5.5vw,40px);letter-spacing:.1em;margin-bottom:14px}
 
 #rotateHint{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
   background:rgba(4,6,8,.95);font-size:15px;letter-spacing:.18em;color:#a2b7c2;text-align:center;padding:30px}
+
+/* ---------------- PWA: подсказка «на экран Домой» ---------------- */
+.a2hs{margin-top:16px;padding:14px 16px;border:1px solid rgba(90,120,135,.3);border-radius:10px;
+  background:rgba(255,255,255,.03);font-size:12px;line-height:1.75;color:#9db2be;text-align:left}
+.a2hs b{color:#e2eaef}
+.ios-share{display:inline-block;padding:1px 7px;border:1px solid rgba(120,170,190,.5);border-radius:5px;
+  color:#8fd0ff;font-size:12px}
+.a2hs-close{display:block;margin-top:10px;padding:8px 14px;font-size:10.5px;letter-spacing:.2em;
+  color:#a2b7c2;background:transparent;border:1px solid rgba(90,120,135,.3);border-radius:6px}
+
+/* в standalone-режиме прячем кнопку полноэкранки и добавляем отступы под «чёлку» */
+body.standalone #fsBtn{display:none}
+body.standalone #hud{padding-top:calc(env(safe-area-inset-top,0px) + 8px)}
